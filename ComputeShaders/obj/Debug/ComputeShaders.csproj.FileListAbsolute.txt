@@ -1,0 +1,4 @@
+C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.csproj.CoreCompileInputs.cache
+C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.dll
+C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.pdb
+C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\bin\Debug\ComputeShaders.xml

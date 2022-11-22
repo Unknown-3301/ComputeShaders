@@ -1,0 +1,118 @@
+﻿using System;
+using System.Runtime.InteropServices;
+using System.Reflection;
+using System.Drawing;
+using System.Drawing.Imaging;
+
+namespace ComputeShaders
+{
+    public static class Utilities
+    {
+        /// <summary>
+        /// Return the address of the object
+        /// </summary>
+        /// <param name="obj">The object</param>
+        /// <param name="handle">The handle that should be disposed (handle.Free()) after finishing using the address</param>
+        /// <returns></returns>
+        public static IntPtr GetIntPtr(object obj, out GCHandle handle)
+        {
+            // source: https://stackoverflow.com/questions/537573/how-to-get-intptr-from-byte-in-c-sharp
+            handle = GCHandle.Alloc(obj, GCHandleType.Pinned);
+            IntPtr intPtr = handle.AddrOfPinnedObject();
+
+            return intPtr;
+        }
+        /// <summary>
+        /// Get the data of a bitmap but upsidedown and the red and blue channels are swapped
+        /// </summary>
+        /// <param name="bitmap"></param>
+        /// <returns></returns>
+        public static SharpDX.DataRectangle GetReversedBitmap(Bitmap bitmap, out Bitmap temp)
+        {
+
+            // source: https://www.codeproject.com/Questions/167235/How-to-swap-Red-and-Blue-channels-on-bitmap
+            
+            temp = new Bitmap(bitmap.Width, bitmap.Height);
+
+            var imageAttr = new ImageAttributes();
+            imageAttr.SetColorMatrix(new ColorMatrix(
+                                         new[]
+                                             {
+                                                 new[] {0.0F, 0.0F, 1.0F, 0.0F, 0.0F},
+                                                 new[] {0.0F, 1.0F, 0.0F, 0.0F, 0.0F},
+                                                 new[] {1.0F, 0.0F, 0.0F, 0.0F, 0.0F},
+                                                 new[] {0.0F, 0.0F, 0.0F, 1.0F, 0.0F},
+                                                 new[] {0.0F, 0.0F, 0.0F, 0.0F, 1.0F}
+                                             }
+                                         ));
+
+            GraphicsUnit pixel = GraphicsUnit.Pixel;
+            using (Graphics g = Graphics.FromImage(temp))
+            {
+                g.DrawImage(bitmap, Rectangle.Round(bitmap.GetBounds(ref pixel)), 0, 0, bitmap.Width, bitmap.Height,
+                            GraphicsUnit.Pixel, imageAttr);
+            }
+
+            temp.RotateFlip(RotateFlipType.RotateNoneFlipY);
+            BitmapData data = temp.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
+
+            SharpDX.DataRectangle rect;
+            try
+            {
+                rect = new SharpDX.DataRectangle(data.Scan0, data.Stride);
+            }
+            finally
+            {
+                temp.UnlockBits(data);
+            }
+
+            return rect;
+        }
+
+        /// <summary>
+        /// Gets the private variable from and object Casted
+        /// </summary>
+        /// <typeparam name="T">Object type that contains the private variable</typeparam>
+        /// <typeparam name="D">The type of the private variable</typeparam>
+        /// <param name="variableName">The name of the private variable</param>
+        /// <param name="obj">The object that contains the private variable</param>
+        /// <returns></returns>
+        public static D GetPrivteVariableDataCasted<T, D>(string variableName, T obj)
+        {
+            return (D)typeof(D).GetField(variableName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(obj);
+        }
+        /// <summary>
+        /// Gets the private variable from and object Uncasted
+        /// </summary>
+        /// <typeparam name="T">Object type that contains the private variable</typeparam>
+        /// <typeparam name="D">The type of the private variable</typeparam>
+        /// <param name="variableName">The name of the private variable</param>
+        /// <param name="obj">The object that contains the private variable</param>
+        /// <returns></returns>
+        public static object GetPrivteVariableDataUncasted<T, D>(string variableName, T obj)
+        {
+            return typeof(D).GetField(variableName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(obj);
+        }
+        public static T GetPrivateFieldValue<T>(this object obj, string name)
+        {
+            // Set the flags so that private and public fields from instances will be found
+            var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            var field = obj.GetType().GetField(name, bindingFlags);
+            return (T)field?.GetValue(obj);
+        }
+        /// <summary>
+        /// returns the object from the pointer given
+        /// </summary>
+        /// <typeparam name="T">The object type</typeparam>
+        /// <param name="intPtr">the pointer to the object data in memory</param>
+        /// <returns></returns>
+        public static T GetObjectFromIntPtr<T>(IntPtr intPtr)
+        {
+            // source: https://stackoverflow.com/questions/17339928/c-sharp-how-to-convert-object-to-intptr-and-back
+            GCHandle handle = (GCHandle)intPtr;
+            T t = (T)handle.Target;
+            handle.Free();
+            return t;
+        }
+    }
+}
