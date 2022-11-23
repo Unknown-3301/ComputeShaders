@@ -76,3 +76,15 @@ struct Point
 Point p = new Point();
 CSCBuffer<Point> pointBuffer = shader.CreateBuffer<Point>(p, sizeof(float) * 4);
 ```
+Now we need to connect the resources to the shader.
+```
+shader.SetRWTexture2D(texture, 0); //in shader the variable is (example) RWTexture2D<float4> Input : register(u0);
+shader.SetRWTexture2DArray(textureArray, 1); //in shader the variable is (example) RWTexture2DArray<float4> Input2 : register(u1);
+shader.SetRWStructuredBuffer(sBuffer, 2); //in shader the variable is (example) RWStructuredBuffer<float> floats : register(u2);
+shader.SetBuffer(cBuffer, 0); //in shader the variable is (example) cbuffer Info : register(b0) { ... }
+```
+After that the shader can be run now. It is the same way as unity
+```
+//as example
+shader.Dispatch(width / 8f, 1, 1);
+```
