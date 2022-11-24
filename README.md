@@ -88,3 +88,7 @@ After that the shader can be run now. It is the same way as unity
 //as example
 shader.Dispatch(width / 8f, 1, 1);
 ```
+
+## Sharing Shader Resources
+Resources are created through a shader which means they are connected to the that shader and ONLY that shader. Connecting a resource to a shader means that this resource can be used in that shader. This means that if we have 2 textures (example) from 2 different shaders, we can not transfer data between the textures using the GPU.!
+[Sharing1](https://user-images.githubusercontent.com/39702846/203797105-8d1c5189-a170-420b-b8b4-ed48c141e7cf.png)
