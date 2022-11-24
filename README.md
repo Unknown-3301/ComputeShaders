@@ -90,5 +90,19 @@ shader.Dispatch(width / 8f, 1, 1);
 ```
 
 ## Sharing Shader Resources
-Resources are created through a shader which means they are connected to the that shader and ONLY that shader. Connecting a resource to a shader means that this resource can be used in that shader. This means that if we have 2 textures (example) from 2 different shaders, we can not transfer data between the textures using the GPU.!
-[Sharing1](https://user-images.githubusercontent.com/39702846/203797105-8d1c5189-a170-420b-b8b4-ed48c141e7cf.png)
+Resources are created through a shader which means they are connected to the that shader and ONLY that shader. Connecting a resource to a shader means that this resource can be used in that shader. This means that if we have 2 textures (example) from 2 different shaders, we can not transfer data between the textures using the GPU.
+![Sharing1](https://user-images.githubusercontent.com/39702846/203797600-7314e0fe-7479-43cb-b7e7-5dcbf6331a68.png)
+While it is not required to transfer data using the GPU, it is a lot faster than using the CPU. I will explaing how to do both. To transfer data using the GPU you need to use the Share function. It is a function in every resource class that creates a resource clone that is connect to a different shader and to the original resource. To use this function the resource must have 'allow sharing' true, which can be set when creating the resource
+```
+Texture2D texture1 = shader1.CreateTexture2D(512, 512, R8G8B8A8_UNorm); //'allow sharing' is by default false
+Texture2D texture1 = shader1.CreateTexture2D(512, 512, R8G8B8A8_UNorm, true); //'allow sharing' is true
+.
+.
+.
+Texture2D sharedResource = texture1.Share(shader2);
+```
+![Sharing2](https://user-images.githubusercontent.com/39702846/203801439-003dd3f6-6223-4c97-aa72-cda9a71e955e.png)
+The shared texture in this example is now connected to shader2, so now we can transfer data from texture 1 to texture 2 using that shared texture. First we transfer the data from texture 1 to the shared texture using the Flush Function. When changing the data of a resource in order to update the change to all shared versions of this resource Flush() must be called, so that after calling Flush() all the resources will have the same data.
+![Sharing3](https://user-images.githubusercontent.com/39702846/203837985-a0d12ae9-a018-4f0d-801a-94a7421ac191.png)
+This also applies to the original resource if the Flush function is called from a shared resouce.
+![Sharing4Croped](https://user-images.githubusercontent.com/39702846/203838570-ea3fb3ef-30b9-49fc-abac-9e201902c71f.png)
