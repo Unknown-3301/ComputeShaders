@@ -218,6 +218,13 @@
             The size of each element in the buffer in bytes.
             </summary>
         </member>
+        <member name="M:ComputeShaders.CSStructuredBuffer`1.CopyToBuffer(ComputeShaders.CSStructuredBuffer{`0})">
+            <summary>
+            Copy the contents of the structured buffer to another structured buffer.
+            NOTE: both buffers must have exact same length, and when the two buffers come from different shaders the function will be slow compared to using shared textures.
+            </summary>
+            <param name="destination">The texture array to copy to.</param>
+        </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.SetData(`0[])">
             <summary>
             Updates the data stored in the buffer
@@ -452,6 +459,13 @@
             <summary>
             Invalidate the pointer to a resource and re-enable the GPU's access to that resource.
             </summary>
+        </member>
+        <member name="M:ComputeShaders.CSTexture2DArray.CopyToTexture(ComputeShaders.CSTexture2DArray)">
+            <summary>
+            Copy the contents of the texture array to another texture array.
+            NOTE: both textures must have exact same dimensions, and this function is so slow compared to using shared textures.
+            </summary>
+            <param name="destination">The texture array to copy to.</param>
         </member>
         <member name="M:ComputeShaders.CSTexture2DArray.Share(ComputeShaders.ComputeShader)">
             <summary>

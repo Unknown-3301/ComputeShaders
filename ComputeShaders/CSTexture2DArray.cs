@@ -5,6 +5,7 @@ using SharpDX.Direct3D11;
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 
 namespace ComputeShaders
 {
@@ -13,6 +14,9 @@ namespace ComputeShaders
     /// </summary>
     public class CSTexture2DArray : IDisposable
     {
+        [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
+        public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
+
         public IntPtr TextureNativePointer { get => Texture.NativePointer; }
         /// <summary>
         /// The SharpDX Direct3D 11 texture
@@ -188,11 +192,31 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Connects this texture array to another compute shader so that data can read/write between the texture array and the compute shader or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture array or the shared version then Flush() should be called on the changed texture array
+        /// Copy the contents of the texture array to another texture array.
+        /// NOTE: both textures must have exact same dimensions, and this function is so slow compared to using shared textures.
         /// </summary>
-        /// <param name="shader">The compute shader to connect with</param>
-        /// <returns></returns>
-        public CSTexture2DArray Share(ComputeShader shader)
+        /// <param name="destination">The texture array to copy to.</param>
+        public void CopyToTexture(CSTexture2DArray destination)
+        {
+            if (destination.Texture.Device != Texture.Device)
+            {
+                TextureDataBox desBox = destination.Map(false, true);
+                TextureDataBox scrBox = Map(true, false);
+
+                CopyMemory(desBox.DataPointer, scrBox.DataPointer, (uint)(scrBox.RowPitch * Texture.Description.Height));
+            }
+            else
+            {
+                Texture.Device.ImmediateContext.CopyResource(Texture, destination.Texture);
+            }
+        }
+
+            /// <summary>
+            /// Connects this texture array to another compute shader so that data can read/write between the texture array and the compute shader or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture array or the shared version then Flush() should be called on the changed texture array
+            /// </summary>
+            /// <param name="shader">The compute shader to connect with</param>
+            /// <returns></returns>
+            public CSTexture2DArray Share(ComputeShader shader)
         {
             //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
             SharpDX.DXGI.Resource copy = Texture.QueryInterface<SharpDX.DXGI.Resource>();

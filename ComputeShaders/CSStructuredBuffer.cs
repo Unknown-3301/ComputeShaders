@@ -153,6 +153,24 @@ namespace ComputeShaders
         }
 
         /// <summary>
+        /// Copy the contents of the structured buffer to another structured buffer.
+        /// NOTE: both buffers must have exact same length, and when the two buffers come from different shaders the function will be slow compared to using shared textures.
+        /// </summary>
+        /// <param name="destination">The texture array to copy to.</param>
+        public void CopyToBuffer(CSStructuredBuffer<T> destination)
+        {
+            if (destination.buffer.Device != buffer.Device)
+            {
+                GetData(ref _elements);
+                destination.SetData(_elements);
+            }
+            else
+            {
+                buffer.Device.ImmediateContext.CopyResource(buffer, destination.buffer);
+            }
+        }
+
+        /// <summary>
         /// Updates the data stored in the buffer
         /// </summary>
         /// <param name="array">The new data</param>
