@@ -13,22 +13,11 @@ namespace ComputeShaders
     /// A class that stores an array of data for RWStructuredBuffer (in the compute shader)
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class CSStructuredBuffer<T> : System.IDisposable where T : struct
+    public class CSStructuredBuffer<T> : ShaderResource<Buffer> where T : struct
     {
-        public System.IntPtr BufferNativePointer { get => buffer.NativePointer; }
-        public System.IntPtr DeviceNativePointer { get => buffer.Device.NativePointer; }
-
-        internal Buffer buffer { get; private set; }
-        internal Buffer stagingBuffer { get; private set; }
-        internal UnorderedAccessView unorderedAccessView;
-
         internal int numberOfElements { get; private set; }
         internal int elementSizeInBytes { get; private set; }
 
-        /// <summary>
-        /// The ability to read the buffer in the cpu
-        /// </summary>
-        public bool CPU_Read { get => stagingBuffer != null; }
         /// <summary>
         /// The number of elements in the buffer.
         /// </summary>
@@ -63,22 +52,12 @@ namespace ComputeShaders
                 }
                 stream.Position = 0;
 
-                buffer = new Buffer(device, stream, new BufferDescription()
+                resource = new Buffer(device, stream, new BufferDescription()
                 {
                     SizeInBytes = arraySize,
                     Usage = ResourceUsage.Default,
                     BindFlags = BindFlags.ShaderResource | BindFlags.UnorderedAccess,
                     OptionFlags = ResourceOptionFlags.BufferStructured | (allowShare ? ResourceOptionFlags.Shared : ResourceOptionFlags.None),
-                    StructureByteStride = eachElementSizeInBytes,
-                });
-
-                stagingBuffer = new Buffer(buffer.Device, new BufferDescription()
-                {
-                    SizeInBytes = elementSizeInBytes * numberOfElements,
-                    CpuAccessFlags = CpuAccessFlags.Read | CpuAccessFlags.Write,
-                    Usage = ResourceUsage.Staging,
-                    BindFlags = BindFlags.None,
-                    OptionFlags = ResourceOptionFlags.None,
                     StructureByteStride = eachElementSizeInBytes,
                 });
             }
@@ -107,7 +86,7 @@ namespace ComputeShaders
 
                 try
                 {
-                    buffer = new Buffer(device, stream, new BufferDescription()
+                    resource = new Buffer(device, stream, new BufferDescription()
                     {
                         SizeInBytes = arraySize,
                         Usage = ResourceUsage.Default,
@@ -116,15 +95,6 @@ namespace ComputeShaders
                         StructureByteStride = eachElementSizeInBytes,
                     });
 
-                    stagingBuffer = new Buffer(buffer.Device, new BufferDescription()
-                    {
-                        SizeInBytes = elementSizeInBytes * numberOfElements,
-                        Usage = ResourceUsage.Staging,
-                        BindFlags = BindFlags.None,
-                        OptionFlags = ResourceOptionFlags.None,
-                        StructureByteStride = elementSizeInBytes,
-                        CpuAccessFlags = CpuAccessFlags.Read
-                    });
                 }
                 catch
                 {
@@ -137,37 +107,22 @@ namespace ComputeShaders
             this.numberOfElements = numberOfElements;
             this.elementSizeInBytes = elementSizeInBytes;
 
-            this.buffer = buffer;
-            stagingBuffer = new Buffer(buffer.Device, new BufferDescription()
-            {
-                SizeInBytes = elementSizeInBytes * numberOfElements,
-                Usage = ResourceUsage.Staging,
-                BindFlags = BindFlags.None,
-                OptionFlags = ResourceOptionFlags.None,
-                StructureByteStride = elementSizeInBytes,
-                CpuAccessFlags = CpuAccessFlags.Read
-            });
+            resource = buffer;
 
             elements = new T[numberOfElements];
+            EnableCPU_Raw_ReadWrite();
             GetData(ref _elements);
         }
-
-        /// <summary>
-        /// Copy the contents of the structured buffer to another structured buffer.
-        /// NOTE: both buffers must have exact same length, and when the two buffers come from different shaders the function will be slow compared to using shared textures.
-        /// </summary>
-        /// <param name="destination">The texture array to copy to.</param>
-        public void CopyToBuffer(CSStructuredBuffer<T> destination)
+        internal CSStructuredBuffer(ShaderResource<Buffer> buffer, int numberOfElements, int elementSizeInBytes)
         {
-            if (destination.buffer.Device != buffer.Device)
-            {
-                GetData(ref _elements);
-                destination.SetData(_elements);
-            }
-            else
-            {
-                buffer.Device.ImmediateContext.CopyResource(buffer, destination.buffer);
-            }
+            this.numberOfElements = numberOfElements;
+            this.elementSizeInBytes = elementSizeInBytes;
+
+            resource = buffer.resource;
+
+            elements = new T[numberOfElements];
+            EnableCPU_Raw_ReadWrite();
+            GetData(ref _elements);
         }
 
         /// <summary>
@@ -176,7 +131,7 @@ namespace ComputeShaders
         /// <param name="array">The new data</param>
         public void SetData(T[] array)
         {
-            buffer.Device.ImmediateContext.UpdateSubresource(array, buffer);
+            resource.Device.ImmediateContext.UpdateSubresource(array, resource);
         }
         /// <summary>
         /// Updates the data stored in the buffer
@@ -187,7 +142,7 @@ namespace ComputeShaders
         {
             list.CopyTo(elements);
 
-            buffer.Device.ImmediateContext.UpdateSubresource(elements, buffer);
+            resource.Device.ImmediateContext.UpdateSubresource(elements, resource);
         }
         /// <summary>
         /// Copy the data in the buffer to the array
@@ -195,14 +150,19 @@ namespace ComputeShaders
         /// <param name="array">the array to copy to</param>
         public void GetData(ref T[] array)
         {
-            buffer.Device.ImmediateContext.CopyResource(buffer, stagingBuffer);
-            DataBox dataBox = stagingBuffer.Device.ImmediateContext.MapSubresource(stagingBuffer, 0, MapMode.Read, MapFlags.None);
+            if (!CPU_ReadWrite)
+            {
+                throw new System.Exception("Cannot use GetData() because CPU read/write ability is disabled. To enable it call EnableCPU_Raw_ReadWrite function.");
+            }
+
+            resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
+            DataBox dataBox = resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, MapMode.Read, MapFlags.None);
 
             GCHandle handle;
             SharpDX.Utilities.CopyMemory(Utilities.GetIntPtr(array, out handle), dataBox.DataPointer, numberOfElements * elementSizeInBytes);
             handle.Free();
 
-            stagingBuffer.Device.ImmediateContext.UnmapSubresource(stagingBuffer, 0);
+            stagingResource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
         }
         /// <summary>
         /// Copy the data in the buffer to the list.
@@ -212,8 +172,13 @@ namespace ComputeShaders
         [System.Obsolete("This function is so slow. Try GetData(ref T[] array) instead.")]
         public void GetData(ref List<T> list)
         {
-            buffer.Device.ImmediateContext.CopyResource(buffer, stagingBuffer);
-            DataBox dataBox = stagingBuffer.Device.ImmediateContext.MapSubresource(stagingBuffer, 0, MapMode.Read, MapFlags.None);
+            if (!CPU_ReadWrite)
+            {
+                throw new System.Exception("Cannot use GetData() because CPU read/write ability is disabled. To enable it call EnableCPU_Raw_ReadWrite function.");
+            }
+
+            resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
+            DataBox dataBox = stagingResource.Device.ImmediateContext.MapSubresource(stagingResource, 0, MapMode.Read, MapFlags.None);
 
             GCHandle handle;
             SharpDX.Utilities.CopyMemory(Utilities.GetIntPtr(elements, out handle), dataBox.DataPointer, numberOfElements * elementSizeInBytes);
@@ -221,91 +186,73 @@ namespace ComputeShaders
 
             list = new List<T>(elements);
 
-            stagingBuffer.Device.ImmediateContext.UnmapSubresource(stagingBuffer, 0);
+            stagingResource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
+        }
+
+        internal override uint GetResourceSize()
+        {
+            return (uint)(numberOfElements * elementSizeInBytes);
+        }
+        internal override ShaderResource<Buffer> CreateSharedResource(Buffer resource)
+        {
+            return new CSStructuredBuffer<T>(resource, numberOfElements, ElementSizeInBytes);
         }
 
         /// <summary>
-        /// Enables the ability to read the buffer using cpu. Enabling it has the advantages:
-        /// <br>- to read the buffer raw data using GetData function.</br>
+        /// Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
+        /// <br>- may increase the performance.</br>
+        /// <br>- decrease the memory usage to almost the half.</br>
         /// <br>and has the disadvantages:</br>
-        /// <br>- may decrease the performance.</br>
-        /// <br>- increase the memory usage to almost the double.</br>
+        /// <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
+        /// <br>- can not write to the resource raw data using WriteToRawData function.</br>
         /// </summary>
-        public void EnableCPU_Read()
+        public override void EnableCPU_Raw_ReadWrite()
         {
-            if (CPU_Read)
+            if (CPU_ReadWrite)
                 return;
 
-            stagingBuffer = new Buffer(buffer.Device, new BufferDescription()
+            stagingResource = new Buffer(resource.Device, new BufferDescription()
             {
                 SizeInBytes = elementSizeInBytes * numberOfElements,
-                CpuAccessFlags = CpuAccessFlags.Read,
                 Usage = ResourceUsage.Staging,
                 BindFlags = BindFlags.None,
                 OptionFlags = ResourceOptionFlags.None,
                 StructureByteStride = elementSizeInBytes,
+                CpuAccessFlags = CpuAccessFlags.Read | CpuAccessFlags.Write
             });
         }
-        /// <summary>
-        /// Disables the ability to read the buffer using cpu. Disables it has the advantages (if cpu read was enabled):
-        /// <br>- may increase the performance.</br>
-        /// <br>- decrease the memory usage to almost the half.</br>
-        /// <br>and has the disadvantages:</br>
-        /// <br>- can not read the buffer raw data using GetData function.</br>
-        /// </summary>
-        public void DisablesCPU_Read()
-        {
-            if (!CPU_Read)
-                return;
-
-            stagingBuffer.Dispose();
-            stagingBuffer = null;
-        }
 
         /// <summary>
-        /// Connects this buffer to another compute shader so that data can read/write between the buffer and the compute shader or any buffer connected to it directly. NOTE: after calling this function if any changes occured to the buffer or the shared version then Flush() should be called on the changed buffer
+        /// Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
         /// </summary>
-        /// <param name="shader">The compute shader to connect with</param>
+        /// <param name="shader">The compute shader to connect with.</param>
         /// <returns></returns>
-        public CSStructuredBuffer<T> Share(ComputeShader shader)
+        public new CSStructuredBuffer<T> Share(ComputeShader shader)
         {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = buffer.QueryInterface<SharpDX.DXGI.Resource>();
-            System.IntPtr sharedHandle = copy.SharedHandle;
-            return new CSStructuredBuffer<T>(shader.device.OpenSharedResource<Buffer>(sharedHandle), numberOfElements, elementSizeInBytes);
+            return new CSStructuredBuffer<T>(base.Share(shader), numberOfElements, elementSizeInBytes);
         }
         /// <summary>
-        /// Connects this buffer to another buffer so that data can read/write between the buffer and the other buffer or any buffer connected to it directly. NOTE: after calling this function if any changes occured to the buffer or the shared version then Flush() should be called on the changed buffer
+        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
         /// </summary>
-        /// <param name="anotherBuffer">The another buffer to connect with</param>
+        /// <param name="another">The another shader resource to connect with</param>
         /// <returns></returns>
-        public CSStructuredBuffer<T> Share<D>(CSStructuredBuffer<D> anotherBuffer) where D : struct
+        public new CSStructuredBuffer<T> Share<T2>(ShaderResource<T2> another) where T2 : Resource
         {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = buffer.QueryInterface<SharpDX.DXGI.Resource>();
-            System.IntPtr sharedHandle = copy.SharedHandle;
-            return new CSStructuredBuffer<T>(anotherBuffer.buffer.Device.OpenSharedResource<Buffer>(sharedHandle), numberOfElements, elementSizeInBytes);
+            return new CSStructuredBuffer<T>(base.Share(another), numberOfElements, elementSizeInBytes);
         }
-        public CSStructuredBuffer<T> Share(System.IntPtr devicePointer, int numberOfElements, int elementSizeInBytes)
-        {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = buffer.QueryInterface<SharpDX.DXGI.Resource>();
-            System.IntPtr sharedHandle = copy.SharedHandle;
-            Device dev = new Device(devicePointer);
-            return new CSStructuredBuffer<T>(dev.OpenSharedResource<SharpDX.Direct3D11.Buffer>(sharedHandle), numberOfElements, elementSizeInBytes);
-        }
-
         /// <summary>
-        /// Sends queued-up commands in the command buffer to the graphics processing unit (GPU). It is used after updating a shared buffer
+        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
         /// </summary>
-        public void Flush()
+        /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
+        /// <returns></returns>
+        public new CSStructuredBuffer<T> Share(System.IntPtr devicePointer)
         {
-            buffer.Device.ImmediateContext.Flush();
+            return new CSStructuredBuffer<T>(base.Share(devicePointer), numberOfElements, elementSizeInBytes);
         }
 
         internal UnorderedAccessView CreateUAV(Device device)
         {
-            unorderedAccessView = new UnorderedAccessView(device, buffer, new UnorderedAccessViewDescription()
+            unorderedAccessView = new UnorderedAccessView(device, resource, new UnorderedAccessViewDescription()
             {
                 Dimension = UnorderedAccessViewDimension.Buffer,
                 Buffer = new UnorderedAccessViewDescription.BufferResource()
@@ -319,16 +266,5 @@ namespace ComputeShaders
             return unorderedAccessView;
         }
 
-        /// <summary>
-        /// Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using this.
-        /// </summary>
-        public void Dispose()
-        {
-            buffer.Dispose();
-            stagingBuffer.Dispose();
-
-            if (unorderedAccessView != null)
-                unorderedAccessView.Dispose();
-        }
     }
 }

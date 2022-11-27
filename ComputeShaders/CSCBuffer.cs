@@ -49,19 +49,6 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Connects this buffer to another compute shader so that data can read/write between the buffer and the compute shader or any buffer connected to it directly. NOTE: after calling this function if any changes occured to the buffer or the shared version then Flush() should be called on the changed buffer
-        /// </summary>
-        /// <param name="shader">The compute shader to connect with</param>
-        /// <returns></returns>
-        public CSCBuffer<T> Share(ComputeShader shader)
-        {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = buffer.QueryInterface<SharpDX.DXGI.Resource>();
-            System.IntPtr sharedHandle = copy.SharedHandle;
-            return new CSCBuffer<T>(shader.device.OpenSharedResource<Buffer>(sharedHandle));
-        }
-
-        /// <summary>
         /// Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using this.
         /// </summary>
         public void Dispose()

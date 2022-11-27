@@ -12,38 +12,27 @@ namespace ComputeShaders
     /// <summary>
     /// The class that holds the texture array data. This class can be created in ComputeShader class
     /// </summary>
-    public class CSTexture2DArray : IDisposable
+    public class CSTexture2DArray : ShaderResource<Texture2D>
     {
-        [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
-        public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
 
-        public IntPtr TextureNativePointer { get => Texture.NativePointer; }
-        /// <summary>
-        /// The SharpDX Direct3D 11 texture
-        /// </summary>
-        public Texture2D Texture { get; private set; }
-        internal Texture2D stagingTexture { get; private set; }
-        internal UnorderedAccessView UnorderedAccessView { get; private set; }
         internal int FormatSizeInBytes { get; }
-
-        private bool alreadyMapping;
 
         /// <summary>
         /// The width of the texture
         /// </summary>
-        public int Width { get => Texture.Description.Width; }
+        public int Width { get => resource.Description.Width; }
         /// <summary>
         /// The height of the texture
         /// </summary>
-        public int Height { get => Texture.Description.Height; }
+        public int Height { get => resource.Description.Height; }
         /// <summary>
         /// The number of textures in the texture array
         /// </summary>
-        public int Textures { get => Texture.Description.ArraySize; }
+        public int Textures { get => resource.Description.ArraySize; }
         /// <summary>
         /// The format of the texture
         /// </summary>
-        public TextureFormat Format { get => (TextureFormat)Texture.Description.Format; }
+        public TextureFormat Format { get => (TextureFormat)resource.Description.Format; }
 
         internal CSTexture2DArray(Device device, int width, int height, int numberOfTextures, Texture2DDescription description)
         {
@@ -53,7 +42,7 @@ namespace ComputeShaders
             dDescription.ArraySize = numberOfTextures;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(description.Format);
 
-            Texture = new Texture2D(device, dDescription);
+            resource = new Texture2D(device, dDescription);
         }
         internal CSTexture2DArray(Device device, IEnumerable<Bitmap> bitmaps, Texture2DDescription description)
         {
@@ -73,7 +62,7 @@ namespace ComputeShaders
                 temps.Add(temp);
             }
 
-            Texture = new Texture2D(device, description, rectangles.ToArray());
+            resource = new Texture2D(device, description, rectangles.ToArray());
             temps.ForEach(x => x.Dispose());
         }
         internal CSTexture2DArray(Device device, IntPtr[] slicesDataPointers, Texture2DDescription description)
@@ -88,13 +77,19 @@ namespace ComputeShaders
                 rectangles[i] = new DataRectangle(slicesDataPointers[i], description.Width * FormatSizeInBytes);
             }
 
-            Texture = new Texture2D(device, description, rectangles);
+            resource = new Texture2D(device, description, rectangles);
 
         }
         internal CSTexture2DArray(Texture2D texture)
         {
-            Texture = texture;
+            resource = texture;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(texture.Description.Format);
+        }
+        internal CSTexture2DArray(ShaderResource<Texture2D> shaderResource)
+        {
+            resource = shaderResource.resource;
+            stagingResource = shaderResource.stagingResource;
+            FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(resource.Description.Format);
         }
 
         /// <summary>
@@ -104,158 +99,136 @@ namespace ComputeShaders
         /// <param name="format">The format of the texture</param>
         public CSTexture2DArray(IntPtr nativePointer, TextureFormat format)
         {
-            Texture = new Texture2D(nativePointer);
+            resource = new Texture2D(nativePointer);
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes((SharpDX.DXGI.Format)format);
         }
 
-        /// <summary>
-        /// Gets a pointer to the data contained in the texture array, and denies the GPU access to that texture. NOTE: after finishing using the pointer UnMap() must be called
-        /// </summary>
-        /// <param name="read">whether you can read from that pointer</param>
-        /// <param name="write">whether you can write to that pointer</param>
-        /// <returns></returns>
-        public TextureDataBox Map(bool read, bool write)
+        internal override uint GetResourceSize()
         {
-            if (stagingTexture == null)
+            return (uint)(Width * Height * Textures * FormatSizeInBytes);
+        }
+        internal override ShaderResource<Texture2D> CreateSharedResource(Texture2D resource)
+        {
+            return new CSTexture2DArray(resource);
+        }
+
+        /// <summary>
+        /// Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
+        /// <br>- may increase the performance.</br>
+        /// <br>- decrease the memory usage to almost the half.</br>
+        /// <br>and has the disadvantages:</br>
+        /// <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
+        /// <br>- can not write to the resource raw data using WriteToRawData function.</br>
+        /// </summary>
+        public override void EnableCPU_Raw_ReadWrite()
+        {
+            if (CPU_ReadWrite)
+                return;
+
+            stagingResource = new Texture2D(resource.Device, new Texture2DDescription()
             {
-                stagingTexture = new Texture2D(Texture.Device, new Texture2DDescription()
-                {
-                    ArraySize = Texture.Description.ArraySize,
-                    CpuAccessFlags = Texture.Description.CpuAccessFlags,
-                    BindFlags = BindFlags.None,
-                    Format = Texture.Description.Format,
-                    Height = Texture.Description.Height,
-                    Width = Texture.Description.Width,
-                    MipLevels = Texture.Description.MipLevels,
-                    Usage = ResourceUsage.Staging,
-                    SampleDescription = Texture.Description.SampleDescription,
-                    OptionFlags = ResourceOptionFlags.None,
-                });
-            }
+                ArraySize = resource.Description.ArraySize,
+                CpuAccessFlags = resource.Description.CpuAccessFlags,
+                BindFlags = BindFlags.None,
+                Format = resource.Description.Format,
+                Height = resource.Description.Height,
+                Width = resource.Description.Width,
+                MipLevels = resource.Description.MipLevels,
+                Usage = ResourceUsage.Staging,
+                SampleDescription = resource.Description.SampleDescription,
+                OptionFlags = ResourceOptionFlags.None,
+            });
+        }
 
-            Texture.Device.ImmediateContext.CopyResource(Texture, stagingTexture);
-
-            if (!read && !write)
-                throw new Exception("CSTexture ERROR: in Map(), read and write cannot both be false!");
-
-            MapMode mode = read ? (write ? MapMode.ReadWrite : MapMode.Read) : MapMode.Write;
-
-            alreadyMapping = true;
-
-            return new TextureDataBox(Texture.Device.ImmediateContext.MapSubresource(stagingTexture, 0, mode, MapFlags.None));
+        /// <summary>
+        /// Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// </summary>
+        /// <param name="shader">The compute shader to connect with.</param>
+        /// <returns></returns>
+        public new CSTexture2DArray Share(ComputeShader shader)
+        {
+            return new CSTexture2DArray(base.Share(shader));
         }
         /// <summary>
-        /// Gets a pointer to the data contained in a slice (texture) in the texture array, and denies the GPU access to that texture. NOTE: after finishing using the pointer UnMap() must be called
+        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
         /// </summary>
-        /// <param name="sliceIndex">The index for the texture in the texture array</param>
-        /// <param name="read">whether you can read from that pointer</param>
-        /// <param name="write">whether you can write to that pointer</param>
+        /// <param name="another">The another shader resource to connect with</param>
         /// <returns></returns>
-        public TextureDataBox MapSlice(int sliceIndex, bool read, bool write)
+        public new CSTexture2DArray Share<T>(ShaderResource<T> another) where T : Resource
         {
-            if (stagingTexture == null)
+            return new CSTexture2DArray(base.Share(another));
+        }
+        /// <summary>
+        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// </summary>
+        /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
+        /// <returns></returns>
+        public new CSTexture2DArray Share(IntPtr devicePointer)
+        {
+            return new CSTexture2DArray(base.Share(devicePointer));
+        }
+
+        /// <summary>
+        /// Write to the a slice (a slice from texture array means a single texture2D) raw data (using only cpu) by an write function.
+        /// NOTE: the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+        /// </summary>
+        /// <param name="writeAction"></param>
+        /// <param name="sliceIndex">The index of the texture (slice) in the texture array.</param>
+        public void WriteToSliceRawData(Action<TextureDataBox> writeAction, int sliceIndex)
+        {
+            if (!CPU_ReadWrite)
             {
-                stagingTexture = new Texture2D(Texture.Device, new Texture2DDescription()
-                {
-                    ArraySize = Texture.Description.ArraySize,
-                    CpuAccessFlags = Texture.Description.CpuAccessFlags,
-                    BindFlags = BindFlags.None,
-                    Format = Texture.Description.Format,
-                    Height = Texture.Description.Height,
-                    Width = Texture.Description.Width,
-                    MipLevels = Texture.Description.MipLevels,
-                    Usage = ResourceUsage.Staging,
-                    SampleDescription = Texture.Description.SampleDescription,
-                    OptionFlags = ResourceOptionFlags.None,
-                });
+                throw new Exception("Cannot use WriteToRawData because CPU read/write ability is disabled. To enable it call EnableCPU_ReadWrite function.");
             }
 
-            Texture.Device.ImmediateContext.CopyResource(Texture, stagingTexture);
-
-            if (!read && !write)
-                throw new Exception("CSTexture ERROR: in Map(), read and write cannot both be false!");
-
-            MapMode mode = read ? (write ? MapMode.ReadWrite : MapMode.Read) : MapMode.Write;
-
-            alreadyMapping = true;
+            resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
 
             int mipSize;
-            return new TextureDataBox(Texture.Device.ImmediateContext.MapSubresource(stagingTexture, 0, sliceIndex, mode, MapFlags.None, out mipSize));
-        }
-        /// <summary>
-        /// Invalidate the pointer to a resource and re-enable the GPU's access to that resource.
-        /// </summary>
-        public void UnMap()
-        {
-            alreadyMapping = false;
-            Texture.Device.ImmediateContext.UnmapSubresource(stagingTexture, 0);
-        }
+            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, sliceIndex, MapMode.Write, MapFlags.None, out mipSize));
 
-        /// <summary>
-        /// Copy the contents of the texture array to another texture array.
-        /// NOTE: both textures must have exact same dimensions, and this function is so slow compared to using shared textures.
-        /// </summary>
-        /// <param name="destination">The texture array to copy to.</param>
-        public void CopyToTexture(CSTexture2DArray destination)
-        {
-            if (destination.Texture.Device != Texture.Device)
+            try
             {
-                TextureDataBox desBox = destination.Map(false, true);
-                TextureDataBox scrBox = Map(true, false);
-
-                CopyMemory(desBox.DataPointer, scrBox.DataPointer, (uint)(scrBox.RowPitch * Texture.Description.Height));
+                writeAction(box);
             }
-            else
+            finally
             {
-                Texture.Device.ImmediateContext.CopyResource(Texture, destination.Texture);
+                resource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
+            }
+
+            resource.Device.ImmediateContext.CopyResource(stagingResource, resource);
+        }
+        /// <summary>
+        /// Reads through the slice (a slice from texture array means a single texture2D) raw data using 'readAction'.
+        /// NOTE: all the reading process must ONLY be done inside 'readAction' function. Also, the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+        /// </summary>
+        /// <param name="readAction"></param>
+        /// <param name="sliceIndex">The index of the texture (slice) in the texture array.</param>
+        public void ReadFromSliceRawData(Action<TextureDataBox> readAction, int sliceIndex)
+        {
+            if (!CPU_ReadWrite)
+            {
+                throw new Exception("Cannot use GetRawDataIntPtr because CPU read/write ability is disabled. To enable it call EnableCPU_ReadWrite function.");
+            }
+
+            resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
+
+            int mipSize;
+            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, sliceIndex, MapMode.Read, MapFlags.None, out mipSize));
+
+            try
+            {
+                readAction(box);
+            }
+            finally
+            {
+                resource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
             }
         }
 
-            /// <summary>
-            /// Connects this texture array to another compute shader so that data can read/write between the texture array and the compute shader or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture array or the shared version then Flush() should be called on the changed texture array
-            /// </summary>
-            /// <param name="shader">The compute shader to connect with</param>
-            /// <returns></returns>
-            public CSTexture2DArray Share(ComputeShader shader)
-        {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = Texture.QueryInterface<SharpDX.DXGI.Resource>();
-            IntPtr sharedHandle = copy.SharedHandle;
-            return new CSTexture2DArray(shader.device.OpenSharedResource<Texture2D>(sharedHandle));
-        }
-        /// <summary>
-        /// Connects this texture array to another texture so that data can read/write between the texture array and the other texture or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture array or the shared version then Flush() should be called on the changed texture array
-        /// </summary>
-        /// <param name="anotherTexture">The another texture to connect with</param>
-        /// <returns></returns>
-        public CSTexture2DArray Share(CSTexture2D anotherTexture)
-        {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = Texture.QueryInterface<SharpDX.DXGI.Resource>();
-            IntPtr sharedHandle = copy.SharedHandle;
-            return new CSTexture2DArray(anotherTexture.Texture.Device.OpenSharedResource<Texture2D>(sharedHandle));
-        }
-        public CSTexture2DArray Share(IntPtr devicePointer)
-        {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = Texture.QueryInterface<SharpDX.DXGI.Resource>();
-            IntPtr sharedHandle = copy.SharedHandle;
-            Device dev = new Device(devicePointer);
-            return new CSTexture2DArray(dev.OpenSharedResource<Texture2D>(sharedHandle));
-        }
-
-
-        /// <summary>
-        /// Sends queued-up commands in the command buffer to the graphics processing unit (GPU). It is used after updating a shared texture
-        /// </summary>
-        public void Flush()
-        {
-            Texture.Device.ImmediateContext.Flush();
-        }
 
         internal UnorderedAccessView CreateUAV(Device device)
         {
-            UnorderedAccessView = new UnorderedAccessView(device, Texture, new UnorderedAccessViewDescription()
+            unorderedAccessView = new UnorderedAccessView(device, resource, new UnorderedAccessViewDescription()
             {
                 Texture2DArray = new UnorderedAccessViewDescription.Texture2DArrayResource()
                 {
@@ -264,29 +237,10 @@ namespace ComputeShaders
                     MipSlice = 0, //if didn't work try 1
                 },
                 Dimension = UnorderedAccessViewDimension.Texture2DArray,
-                Format = Texture.Description.Format,
+                Format = resource.Description.Format,
             });
 
-            return UnorderedAccessView;
-        }
-
-        /// <summary>
-        /// Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using the texture.
-        /// </summary>
-        public void Dispose()
-        {
-            Texture.Dispose();
-
-            if (stagingTexture != null)
-                stagingTexture.Dispose();
-
-            if (UnorderedAccessView != null)
-                UnorderedAccessView.Dispose();
-
-            if (alreadyMapping)
-            {
-                UnMap();
-            }
+            return unorderedAccessView;
         }
     }
 }

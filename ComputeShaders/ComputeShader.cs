@@ -291,7 +291,7 @@ namespace ComputeShaders
         /// <br>Example: RWTexture2D<float4> texture : register(u0);   its register index is 0</br>
         public void SetRWTexture2D(CSTexture2D texture, int register_uav_index)
         {
-            UnorderedAccessView view = texture.UnorderedAccessView;
+            UnorderedAccessView view = texture.unorderedAccessView;
             if (view == null)
             {
                 view = texture.CreateUAV(device);
@@ -307,7 +307,7 @@ namespace ComputeShaders
         /// <br>Example: RWTexture2D<float4> texture : register(u0);   its register index is 0</br>
         public void SetRWTexture2DArray(CSTexture2DArray textureArray, int register_uav_index)
         {
-            UnorderedAccessView view = textureArray.UnorderedAccessView;
+            UnorderedAccessView view = textureArray.unorderedAccessView;
             if (view == null)
             {
                 view = textureArray.CreateUAV(device);

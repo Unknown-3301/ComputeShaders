@@ -11,10 +11,6 @@ namespace ComputeShaders
     /// </summary>
     public class MultipleOf16CSTexture2DConverter
     {
-        [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
-        public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
-
-        Texture2D stagingTexture;
         Bitmap finalBitmap;
         Graphics bitmapGraphics;
 
@@ -34,20 +30,6 @@ namespace ComputeShaders
             if ((int)Math.Ceiling(texture2D.Width / 16f) * 16 != originalWidth)
                 throw new ArgumentException($"The texture width: {texture2D.Width} isn't a multiple of 16");
 
-            stagingTexture = new Texture2D(texture2D.Texture.Device, new Texture2DDescription()
-            {
-                ArraySize = texture2D.Texture.Description.ArraySize,
-                CpuAccessFlags = texture2D.Texture.Description.CpuAccessFlags,
-                BindFlags = BindFlags.None,
-                Format = (SharpDX.DXGI.Format)texture2D.Format,
-                Height = texture2D.Height,
-                Width = texture2D.Width,
-                MipLevels = texture2D.Texture.Description.MipLevels,
-                Usage = ResourceUsage.Staging,
-                SampleDescription = texture2D.Texture.Description.SampleDescription,
-                OptionFlags = ResourceOptionFlags.None,
-            });
-
             finalBitmap = new Bitmap(originalWidth, originalHeight, TextureFormatHelper.ConvertFormatToBitmap(texture2D.Format));
             bitmapGraphics = Graphics.FromImage(finalBitmap);
         }
@@ -58,14 +40,19 @@ namespace ComputeShaders
         /// <param name="source">The CSTexture2D to copy from</param>
         public Bitmap Convert(CSTexture2D source)
         {
-            stagingTexture.Device.ImmediateContext.CopyResource(source.Texture, stagingTexture);
-            SharpDX.DataBox data = stagingTexture.Device.ImmediateContext.MapSubresource(stagingTexture, 0, MapMode.Read, MapFlags.None);
-
             BitmapData bitData = finalBitmap.LockBits(new Rectangle(0, 0, finalBitmap.Width, finalBitmap.Height), ImageLockMode.WriteOnly, finalBitmap.PixelFormat);
 
-            CopyMemory(bitData.Scan0, data.DataPointer, (uint)(originalWidth * originalHeight * formateSizeInBytes));
-
-            finalBitmap.UnlockBits(bitData);
+            try
+            {
+                source.ReadFromRawData(data =>
+                {
+                    Utilities.CopyMemory(bitData.Scan0, data.DataPointer, (uint)(originalWidth * originalHeight * formateSizeInBytes));
+                });
+            }
+            finally
+            {
+                finalBitmap.UnlockBits(bitData);
+            }
 
             return finalBitmap;
         }
@@ -75,7 +62,6 @@ namespace ComputeShaders
         /// </summary>
         public void Dispose()
         {
-            stagingTexture.Dispose();
             finalBitmap.Dispose();
             bitmapGraphics.Dispose();
         }

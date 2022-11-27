@@ -185,13 +185,6 @@
             </summary>
             <param name="newData">the new data</param>
         </member>
-        <member name="M:ComputeShaders.CSCBuffer`1.Share(ComputeShaders.ComputeShader)">
-            <summary>
-            Connects this buffer to another compute shader so that data can read/write between the buffer and the compute shader or any buffer connected to it directly. NOTE: after calling this function if any changes occured to the buffer or the shared version then Flush() should be called on the changed buffer
-            </summary>
-            <param name="shader">The compute shader to connect with</param>
-            <returns></returns>
-        </member>
         <member name="M:ComputeShaders.CSCBuffer`1.Dispose">
             <summary>
             Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using this.
@@ -203,11 +196,6 @@
             </summary>
             <typeparam name="T"></typeparam>
         </member>
-        <member name="P:ComputeShaders.CSStructuredBuffer`1.CPU_Read">
-            <summary>
-            The ability to read the buffer in the cpu
-            </summary>
-        </member>
         <member name="P:ComputeShaders.CSStructuredBuffer`1.Length">
             <summary>
             The number of elements in the buffer.
@@ -217,13 +205,6 @@
             <summary>
             The size of each element in the buffer in bytes.
             </summary>
-        </member>
-        <member name="M:ComputeShaders.CSStructuredBuffer`1.CopyToBuffer(ComputeShaders.CSStructuredBuffer{`0})">
-            <summary>
-            Copy the contents of the structured buffer to another structured buffer.
-            NOTE: both buffers must have exact same length, and when the two buffers come from different shaders the function will be slow compared to using shared textures.
-            </summary>
-            <param name="destination">The texture array to copy to.</param>
         </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.SetData(`0[])">
             <summary>
@@ -250,61 +231,40 @@
             </summary>
             <param name="list">the list to copy to</param>
         </member>
-        <member name="M:ComputeShaders.CSStructuredBuffer`1.EnableCPU_Read">
+        <member name="M:ComputeShaders.CSStructuredBuffer`1.EnableCPU_Raw_ReadWrite">
             <summary>
-            Enables the ability to read the buffer using cpu. Enabling it has the advantages:
-            <br>- to read the buffer raw data using GetData function.</br>
-            <br>and has the disadvantages:</br>
-            <br>- may decrease the performance.</br>
-            <br>- increase the memory usage to almost the double.</br>
-            </summary>
-        </member>
-        <member name="M:ComputeShaders.CSStructuredBuffer`1.DisablesCPU_Read">
-            <summary>
-            Disables the ability to read the buffer using cpu. Disables it has the advantages (if cpu read was enabled):
+            Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
             <br>- may increase the performance.</br>
             <br>- decrease the memory usage to almost the half.</br>
             <br>and has the disadvantages:</br>
-            <br>- can not read the buffer raw data using GetData function.</br>
+            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
+            <br>- can not write to the resource raw data using WriteToRawData function.</br>
             </summary>
         </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.Share(ComputeShaders.ComputeShader)">
             <summary>
-            Connects this buffer to another compute shader so that data can read/write between the buffer and the compute shader or any buffer connected to it directly. NOTE: after calling this function if any changes occured to the buffer or the shared version then Flush() should be called on the changed buffer
+            Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-            <param name="shader">The compute shader to connect with</param>
+            <param name="shader">The compute shader to connect with.</param>
             <returns></returns>
         </member>
-        <member name="M:ComputeShaders.CSStructuredBuffer`1.Share``1(ComputeShaders.CSStructuredBuffer{``0})">
+        <member name="M:ComputeShaders.CSStructuredBuffer`1.Share``1(ComputeShaders.ShaderResource{``0})">
             <summary>
-            Connects this buffer to another buffer so that data can read/write between the buffer and the other buffer or any buffer connected to it directly. NOTE: after calling this function if any changes occured to the buffer or the shared version then Flush() should be called on the changed buffer
+            Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-            <param name="anotherBuffer">The another buffer to connect with</param>
+            <param name="another">The another shader resource to connect with</param>
             <returns></returns>
         </member>
-        <member name="M:ComputeShaders.CSStructuredBuffer`1.Flush">
+        <member name="M:ComputeShaders.CSStructuredBuffer`1.Share(System.IntPtr)">
             <summary>
-            Sends queued-up commands in the command buffer to the graphics processing unit (GPU). It is used after updating a shared buffer
+            Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-        </member>
-        <member name="M:ComputeShaders.CSStructuredBuffer`1.Dispose">
-            <summary>
-            Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using this.
-            </summary>
+            <param name="devicePointer">The Direct3D 11 device to connect with</param>
+            <returns></returns>
         </member>
         <member name="T:ComputeShaders.CSTexture2D">
             <summary>
             The class that holds the texture data. This class can be created in ComputeShader class
-            </summary>
-        </member>
-        <member name="P:ComputeShaders.CSTexture2D.Texture">
-            <summary>
-            The SharpDX Direct3D 11 texture
-            </summary>
-        </member>
-        <member name="P:ComputeShaders.CSTexture2D.CPU_ReadWrite">
-            <summary>
-            The ability to read/write the texture in the cpu
             </summary>
         </member>
         <member name="P:ComputeShaders.CSTexture2D.Width">
@@ -329,86 +289,40 @@
             <param name="nativePointer">The texture pointer</param>
             <param name="format">The format of the texture</param>
         </member>
+        <member name="M:ComputeShaders.CSTexture2D.EnableCPU_Raw_ReadWrite">
+            <summary>
+            Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
+            <br>- may increase the performance.</br>
+            <br>- decrease the memory usage to almost the half.</br>
+            <br>and has the disadvantages:</br>
+            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
+            <br>- can not write to the resource raw data using WriteToRawData function.</br>
+            </summary>
+        </member>
         <member name="M:ComputeShaders.CSTexture2D.Share(ComputeShaders.ComputeShader)">
             <summary>
-            Connects this texture to another compute shader so that data can read/write between the texture and the compute shader or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture or the shared version then Flush() should be called on the changed texture
+            Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-            <param name="shader">The compute shader to connect with</param>
+            <param name="shader">The compute shader to connect with.</param>
             <returns></returns>
         </member>
-        <member name="M:ComputeShaders.CSTexture2D.Share(ComputeShaders.CSTexture2D)">
+        <member name="M:ComputeShaders.CSTexture2D.Share``1(ComputeShaders.ShaderResource{``0})">
             <summary>
-            Connects this texture to another texture so that data can read/write between the texture and the other texture or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture or the shared version then Flush() should be called on the changed texture
+            Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-            <param name="anotherTexture">The another texture to connect with</param>
+            <param name="another">The another shader resource to connect with</param>
             <returns></returns>
         </member>
         <member name="M:ComputeShaders.CSTexture2D.Share(System.IntPtr)">
             <summary>
-            Connects this texture to another texture so that data can read/write between the texture and the other texture or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture or the shared version then Flush() should be called on the changed texture
+            Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-            <param name="devicePointer">The another texture device to connect with</param>
+            <param name="devicePointer">The Direct3D 11 device to connect with</param>
             <returns></returns>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2D.EnableCPU_ReadWrite">
-            <summary>
-            Enables the ability to read/write the texture using cpu. Enabling it has the advantages:
-            <br>- to read the texture raw data using GetRawDataIntPtr function.</br>
-            <br>- to write to the texture raw data using WriteToRawData function.</br>
-            <br>and has the disadvantages:</br>
-            <br>- may decrease the performance.</br>
-            <br>- increase the memory usage to almost the double.</br>
-            </summary>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2D.DisablesCPU_ReadWrite">
-            <summary>
-            Disables the ability to read/write the texture using cpu. Disables it has the advantages (if cpu read/write was enabled):
-            <br>- may increase the performance.</br>
-            <br>- decrease the memory usage to almost the half.</br>
-            <br>and has the disadvantages:</br>
-            <br>- can not read the texture raw data using GetRawDataIntPtr function.</br>
-            <br>- can not write to the texture raw data using WriteToRawData function.</br>
-            </summary>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2D.CopyToTexture(ComputeShaders.CSTexture2D)">
-            <summary>
-            Copy the contents of the texture to another texture.
-            NOTE: CPU read/write ability must be enabled for both textures, both textures must have exact same dimensions, and this function is so slow compared to using shared textures.
-            </summary>
-            <param name="destination">The texture to copy to.</param>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2D.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})">
-            <summary>
-            Write to the texture raw data (using only cpu) by an write function.
-            NOTE: the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
-            </summary>
-            <param name="writeAction"></param>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2D.ReadFromRawData(System.Action{ComputeShaders.TextureDataBox})">
-            <summary>
-            Reads through the raw data using 'readAction'.
-            NOTE: all the reading process must ONLY be done inside 'readAction' function.
-            </summary>
-            <returns></returns>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2D.Flush">
-            <summary>
-            Sends queued-up commands in the command buffer to the graphics processing unit (GPU). It is used after updating a shared texture
-            </summary>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2D.Dispose">
-            <summary>
-            Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using the texture.
-            </summary>
         </member>
         <member name="T:ComputeShaders.CSTexture2DArray">
             <summary>
             The class that holds the texture array data. This class can be created in ComputeShader class
-            </summary>
-        </member>
-        <member name="P:ComputeShaders.CSTexture2DArray.Texture">
-            <summary>
-            The SharpDX Direct3D 11 texture
             </summary>
         </member>
         <member name="P:ComputeShaders.CSTexture2DArray.Width">
@@ -438,58 +352,52 @@
             <param name="nativePointer">The texture array pointer</param>
             <param name="format">The format of the texture</param>
         </member>
-        <member name="M:ComputeShaders.CSTexture2DArray.Map(System.Boolean,System.Boolean)">
+        <member name="M:ComputeShaders.CSTexture2DArray.EnableCPU_Raw_ReadWrite">
             <summary>
-            Gets a pointer to the data contained in the texture array, and denies the GPU access to that texture. NOTE: after finishing using the pointer UnMap() must be called
+            Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
+            <br>- may increase the performance.</br>
+            <br>- decrease the memory usage to almost the half.</br>
+            <br>and has the disadvantages:</br>
+            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
+            <br>- can not write to the resource raw data using WriteToRawData function.</br>
             </summary>
-            <param name="read">whether you can read from that pointer</param>
-            <param name="write">whether you can write to that pointer</param>
-            <returns></returns>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2DArray.MapSlice(System.Int32,System.Boolean,System.Boolean)">
-            <summary>
-            Gets a pointer to the data contained in a slice (texture) in the texture array, and denies the GPU access to that texture. NOTE: after finishing using the pointer UnMap() must be called
-            </summary>
-            <param name="sliceIndex">The index for the texture in the texture array</param>
-            <param name="read">whether you can read from that pointer</param>
-            <param name="write">whether you can write to that pointer</param>
-            <returns></returns>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2DArray.UnMap">
-            <summary>
-            Invalidate the pointer to a resource and re-enable the GPU's access to that resource.
-            </summary>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2DArray.CopyToTexture(ComputeShaders.CSTexture2DArray)">
-            <summary>
-            Copy the contents of the texture array to another texture array.
-            NOTE: both textures must have exact same dimensions, and this function is so slow compared to using shared textures.
-            </summary>
-            <param name="destination">The texture array to copy to.</param>
         </member>
         <member name="M:ComputeShaders.CSTexture2DArray.Share(ComputeShaders.ComputeShader)">
             <summary>
-            Connects this texture array to another compute shader so that data can read/write between the texture array and the compute shader or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture array or the shared version then Flush() should be called on the changed texture array
+            Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-            <param name="shader">The compute shader to connect with</param>
+            <param name="shader">The compute shader to connect with.</param>
             <returns></returns>
         </member>
-        <member name="M:ComputeShaders.CSTexture2DArray.Share(ComputeShaders.CSTexture2D)">
+        <member name="M:ComputeShaders.CSTexture2DArray.Share``1(ComputeShaders.ShaderResource{``0})">
             <summary>
-            Connects this texture array to another texture so that data can read/write between the texture array and the other texture or any texture connected to it directly. NOTE: after calling this function if any changes occured to the texture array or the shared version then Flush() should be called on the changed texture array
+            Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
-            <param name="anotherTexture">The another texture to connect with</param>
+            <param name="another">The another shader resource to connect with</param>
             <returns></returns>
         </member>
-        <member name="M:ComputeShaders.CSTexture2DArray.Flush">
+        <member name="M:ComputeShaders.CSTexture2DArray.Share(System.IntPtr)">
             <summary>
-            Sends queued-up commands in the command buffer to the graphics processing unit (GPU). It is used after updating a shared texture
+            Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
             </summary>
+            <param name="devicePointer">The Direct3D 11 device to connect with</param>
+            <returns></returns>
         </member>
-        <member name="M:ComputeShaders.CSTexture2DArray.Dispose">
+        <member name="M:ComputeShaders.CSTexture2DArray.WriteToSliceRawData(System.Action{ComputeShaders.TextureDataBox},System.Int32)">
             <summary>
-            Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using the texture.
+            Write to the a slice (a slice from texture array means a single texture2D) raw data (using only cpu) by an write function.
+            NOTE: the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
             </summary>
+            <param name="writeAction"></param>
+            <param name="sliceIndex">The index of the texture (slice) in the texture array.</param>
+        </member>
+        <member name="M:ComputeShaders.CSTexture2DArray.ReadFromSliceRawData(System.Action{ComputeShaders.TextureDataBox},System.Int32)">
+            <summary>
+            Reads through the slice (a slice from texture array means a single texture2D) raw data using 'readAction'.
+            NOTE: all the reading process must ONLY be done inside 'readAction' function. Also, the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+            </summary>
+            <param name="readAction"></param>
+            <param name="sliceIndex">The index of the texture (slice) in the texture array.</param>
         </member>
         <member name="T:ComputeShaders.MultipleOf16CSTexture2DConverter">
             <summary>
@@ -531,6 +439,94 @@
         <member name="M:ComputeShaders.CSTexture2DConverter.Dispose">
             <summary>
             Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using this.
+            </summary>
+        </member>
+        <member name="T:ComputeShaders.ShaderResource`1">
+            <summary>
+            A base class for all shader Resources (exept constant buffer).
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.ShaderResource`1.CPU_ReadWrite">
+            <summary>
+            The ability to read/write the resource raw data in the cpu
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.Share(ComputeShaders.ComputeShader)">
+            <summary>
+            Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+            </summary>
+            <param name="shader">The compute shader to connect with.</param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.Share``1(ComputeShaders.ShaderResource{``0})">
+            <summary>
+            Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+            </summary>
+            <param name="another">The another shader resource to connect with</param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.Share(System.IntPtr)">
+            <summary>
+            Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+            </summary>
+            <param name="devicePointer">The Direct3D 11 device to connect with</param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.Flush">
+            <summary>
+            Sends queued-up commands in the command buffer to the graphics processing unit (GPU). It is used after updating a shared resource.
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.GetResourceSize">
+            <summary>
+            Returns the size of the resource in bytes.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.CopyTo(ComputeShaders.ShaderResource{`0})">
+            <summary>
+            Copy the contents from this resource to another resource.
+            NOTE: In case that the 2 resources connect to different shaders, CPU read/write ability must be enabled for both resources. Both resource must have exact same dimensions. This function is so slow compared to other methods like using shared resources.
+            </summary>
+            <param name="destination">The resource to copy to.</param>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})">
+            <summary>
+            Write to the resource raw data (using only cpu) by an write function.
+            NOTE: the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+            </summary>
+            <param name="writeAction"></param>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.ReadFromRawData(System.Action{ComputeShaders.TextureDataBox})">
+            <summary>
+            Reads through the raw data using 'readAction'.
+            NOTE: all the reading process must ONLY be done inside 'readAction' function. Also, the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.EnableCPU_Raw_ReadWrite">
+            <summary>
+            Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
+            <br>- to read the resource raw data using GetRawDataIntPtr function.</br>
+            <br>- to write to the resource raw data using WriteToRawData function.</br>
+            <br>and has the disadvantages:</br>
+            <br>- may decrease the performance.</br>
+            <br>- increase the memory usage to almost the double.</br>
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.DisablesCPU_Raw_ReadWrite">
+            <summary>
+            Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
+            <br>- may increase the performance.</br>
+            <br>- decrease the memory usage to almost the half.</br>
+            <br>and has the disadvantages:</br>
+            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
+            <br>- can not write to the resource raw data using WriteToRawData function.</br>
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.ShaderResource`1.Dispose">
+            <summary>
+            Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using the resource.
             </summary>
         </member>
         <member name="T:ComputeShaders.TextureDataBox">
@@ -582,6 +578,14 @@
             </summary>
             <param name="pixelFormat">The format</param>
             <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Utilities.CopyMemory(System.IntPtr,System.IntPtr,System.UInt32)">
+            <summary>
+            Copies the data from the scr pointer to the dest pointer.
+            </summary>
+            <param name="dest">Destination pointer.</param>
+            <param name="src">Source pointer.</param>
+            <param name="count">Data length in bytes.</param>
         </member>
         <member name="M:ComputeShaders.Utilities.GetIntPtr(System.Object,System.Runtime.InteropServices.GCHandle@)">
             <summary>

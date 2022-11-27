@@ -2,5 +2,6 @@ ComputeShaders.dll
 SharpDX.D3DCompiler.dll
 SharpDX.Direct3D11.dll
 SharpDX.DXGI.dll
+System.Drawing.Common.dll
 System.Drawing.dll
 SharpDX.dll

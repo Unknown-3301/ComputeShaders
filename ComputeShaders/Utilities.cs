@@ -9,6 +9,15 @@ namespace ComputeShaders
     public static class Utilities
     {
         /// <summary>
+        /// Copies the data from the scr pointer to the dest pointer.
+        /// </summary>
+        /// <param name="dest">Destination pointer.</param>
+        /// <param name="src">Source pointer.</param>
+        /// <param name="count">Data length in bytes.</param>
+        [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
+        public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
+
+        /// <summary>
         /// Return the address of the object
         /// </summary>
         /// <param name="obj">The object</param>
