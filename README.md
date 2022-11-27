@@ -1,7 +1,7 @@
 # ComputeShaders
 ---
 
-a library that wraps the [SharpDX](https://github.com/sharpdx/SharpDX) library to be used like compute shaders in Unity. For examples you can check [ComputeShaders Examples](https://github.com/Unknown-3301/ComputeShaders-Examples)
+a library that wraps the [SharpDX](https://github.com/sharpdx/SharpDX) (Direct3D 11) library to be used like compute shaders in Unity. For examples you can check [ComputeShaders Examples](https://github.com/Unknown-3301/ComputeShaders-Examples)
 
 ## Usage
 Before explaining, this does not contain the full details, but the important information. We first need to create a `ComputeShader` class either by having the byte array of the compiled shader or the path to the shader. You can get the byte array for a compiled shader through the static function `CompileComputeShader(string shaderName, string entryPoint = "CSMain", string targetProfile = "cs_5_0")` where **shaderName** is the path to the shader file, **entryPoint** is the main kernel function name in the said shader, and **targetProfile** is the type and version of the shader (cs is for Compute shader and 5_0 is for shader model 5.0).
