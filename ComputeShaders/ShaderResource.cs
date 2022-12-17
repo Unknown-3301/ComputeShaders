@@ -17,32 +17,40 @@ namespace ComputeShaders
         internal UnorderedAccessView unorderedAccessView;
 
         /// <summary>
+        /// The device connected to this resource.
+        /// </summary>
+        public CSDevice Device { get; protected set; }
+
+        /// <summary>
         /// The ability to read/write the resource raw data in the cpu
         /// </summary>
         public bool CPU_ReadWrite { get => stagingResource != null; }
 
-        internal virtual ShaderResource<T> CreateSharedResource(T resource)
+        internal virtual ShaderResource<T> CreateSharedResource(T resource, CSDevice device)
         {
             return new ShaderResource<T>()
             {
                 resource = resource,
+                Device = device,
             };
         }
 
         /// <summary>
-        /// Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="Flush"/> must be called on the changed resource.</br>
         /// </summary>
-        /// <param name="shader">The compute shader to connect with.</param>
+        /// <param name="device">The device to connect with.</param>
         /// <returns></returns>
-        public ShaderResource<T> Share(ComputeShader shader)
+        public ShaderResource<T> Share(CSDevice device)
         {
             //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
             SharpDX.DXGI.Resource copy = resource.QueryInterface<SharpDX.DXGI.Resource>();
             IntPtr sharedHandle = copy.SharedHandle;
-            return CreateSharedResource(shader.device.OpenSharedResource<T>(sharedHandle));
+            return CreateSharedResource(device.device.OpenSharedResource<T>(sharedHandle), device);
         }
         /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="Flush"/> must be called on the changed resource.</br>
         /// </summary>
         /// <param name="another">The another shader resource to connect with</param>
         /// <returns></returns>
@@ -51,11 +59,11 @@ namespace ComputeShaders
             //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
             SharpDX.DXGI.Resource copy = resource.QueryInterface<SharpDX.DXGI.Resource>();
             IntPtr sharedHandle = copy.SharedHandle;
-            return CreateSharedResource(another.resource.Device.OpenSharedResource<T>(sharedHandle));
+            return CreateSharedResource(another.resource.Device.OpenSharedResource<T>(sharedHandle), another.Device);
         }
         /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
-        /// </summary>
+        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="Flush"/> must be called on the changed resource.</br>/// </summary>
         /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
         /// <returns></returns>
         public ShaderResource<T> Share(IntPtr devicePointer)
@@ -64,7 +72,7 @@ namespace ComputeShaders
             SharpDX.DXGI.Resource copy = resource.QueryInterface<SharpDX.DXGI.Resource>();
             IntPtr sharedHandle = copy.SharedHandle;
             Device device = new Device(devicePointer);
-            return CreateSharedResource(device.OpenSharedResource<T>(sharedHandle));
+            return CreateSharedResource(device.OpenSharedResource<T>(sharedHandle), new CSDevice(devicePointer));
         }
 
         /// <summary>

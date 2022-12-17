@@ -9,6 +9,7 @@ using SharpDX.Direct3D11;
 
 namespace ComputeShaders
 {
+
     /// <summary>
     /// A class that stores an array of data for RWStructuredBuffer (in the compute shader)
     /// </summary>
@@ -30,11 +31,12 @@ namespace ComputeShaders
         T[] _elements;
         internal T[] elements { get => _elements; private set { _elements = value; } }
 
-        internal CSStructuredBuffer(Device device, T[] array, int eachElementSizeInBytes, bool allowShare)
+        internal CSStructuredBuffer(CSDevice device, T[] array, int eachElementSizeInBytes, bool allowShare)
         {
             elementSizeInBytes = eachElementSizeInBytes;
             numberOfElements = array.Length;
             int arraySize = array.Length * eachElementSizeInBytes;
+            Device = device;
 
             if (array == null)
             {
@@ -52,7 +54,7 @@ namespace ComputeShaders
                 }
                 stream.Position = 0;
 
-                resource = new Buffer(device, stream, new BufferDescription()
+                resource = new Buffer(device.device, stream, new BufferDescription()
                 {
                     SizeInBytes = arraySize,
                     Usage = ResourceUsage.Default,
@@ -62,11 +64,12 @@ namespace ComputeShaders
                 });
             }
         }
-        internal CSStructuredBuffer(Device device, List<T> array, int eachElementSizeInBytes, bool allowShare)
+        internal CSStructuredBuffer(CSDevice device, List<T> array, int eachElementSizeInBytes, bool allowShare)
         {
             elementSizeInBytes = eachElementSizeInBytes;
             numberOfElements = array.Count;
             int arraySize = array.Count * eachElementSizeInBytes;
+            Device = device;
 
             if (array == null)
             {
@@ -86,7 +89,7 @@ namespace ComputeShaders
 
                 try
                 {
-                    resource = new Buffer(device, stream, new BufferDescription()
+                    resource = new Buffer(device.device, stream, new BufferDescription()
                     {
                         SizeInBytes = arraySize,
                         Usage = ResourceUsage.Default,
@@ -102,10 +105,11 @@ namespace ComputeShaders
                 }
             }
         }
-        internal CSStructuredBuffer(Buffer buffer, int numberOfElements, int elementSizeInBytes)
+        internal CSStructuredBuffer(Buffer buffer, CSDevice device, int numberOfElements, int elementSizeInBytes)
         {
             this.numberOfElements = numberOfElements;
             this.elementSizeInBytes = elementSizeInBytes;
+            Device = device;
 
             resource = buffer;
 
@@ -117,6 +121,7 @@ namespace ComputeShaders
         {
             this.numberOfElements = numberOfElements;
             this.elementSizeInBytes = elementSizeInBytes;
+            Device = buffer.Device;
 
             resource = buffer.resource;
 
@@ -193,9 +198,9 @@ namespace ComputeShaders
         {
             return (uint)(numberOfElements * elementSizeInBytes);
         }
-        internal override ShaderResource<Buffer> CreateSharedResource(Buffer resource)
+        internal override ShaderResource<Buffer> CreateSharedResource(Buffer resource, CSDevice device)
         {
-            return new CSStructuredBuffer<T>(resource, numberOfElements, ElementSizeInBytes);
+            return new CSStructuredBuffer<T>(resource, device, numberOfElements, ElementSizeInBytes);
         }
 
         /// <summary>
@@ -223,16 +228,18 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
         /// </summary>
-        /// <param name="shader">The compute shader to connect with.</param>
+        /// <param name="device">The device to connect with.</param>
         /// <returns></returns>
-        public new CSStructuredBuffer<T> Share(ComputeShader shader)
+        public new CSStructuredBuffer<T> Share(CSDevice device)
         {
-            return new CSStructuredBuffer<T>(base.Share(shader), numberOfElements, elementSizeInBytes);
+            return new CSStructuredBuffer<T>(base.Share(device), numberOfElements, elementSizeInBytes);
         }
         /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
         /// </summary>
         /// <param name="another">The another shader resource to connect with</param>
         /// <returns></returns>
@@ -241,8 +248,8 @@ namespace ComputeShaders
             return new CSStructuredBuffer<T>(base.Share(another), numberOfElements, elementSizeInBytes);
         }
         /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
-        /// </summary>
+        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>/// </summary>
         /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
         /// <returns></returns>
         public new CSStructuredBuffer<T> Share(System.IntPtr devicePointer)

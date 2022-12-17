@@ -34,22 +34,24 @@ namespace ComputeShaders
         /// </summary>
         public TextureFormat Format { get => (TextureFormat)resource.Description.Format; }
 
-        internal CSTexture2DArray(Device device, int width, int height, int numberOfTextures, Texture2DDescription description)
+        internal CSTexture2DArray(CSDevice device, int width, int height, int numberOfTextures, Texture2DDescription description)
         {
             Texture2DDescription dDescription = description;
             dDescription.Width = width;
             dDescription.Height = height;
             dDescription.ArraySize = numberOfTextures;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(description.Format);
+            Device = device;
 
-            resource = new Texture2D(device, dDescription);
+            resource = new Texture2D(device.device, dDescription);
         }
-        internal CSTexture2DArray(Device device, IEnumerable<Bitmap> bitmaps, Texture2DDescription description)
+        internal CSTexture2DArray(CSDevice device, IEnumerable<Bitmap> bitmaps, Texture2DDescription description)
         {
             // souce: https://stackoverflow.com/questions/36068631/sharpdx-3-0-2-d3d11-how-to-load-texture-from-file-and-make-it-to-work-in-shade
 
             List<DataRectangle> rectangles = new List<DataRectangle>();
             List<Bitmap> temps = new List<Bitmap>();
+            Device = device;
 
             foreach (Bitmap bitmap in bitmaps)
             {
@@ -62,14 +64,15 @@ namespace ComputeShaders
                 temps.Add(temp);
             }
 
-            resource = new Texture2D(device, description, rectangles.ToArray());
+            resource = new Texture2D(device.device, description, rectangles.ToArray());
             temps.ForEach(x => x.Dispose());
         }
-        internal CSTexture2DArray(Device device, IntPtr[] slicesDataPointers, Texture2DDescription description)
+        internal CSTexture2DArray(CSDevice device, IntPtr[] slicesDataPointers, Texture2DDescription description)
         {
             // souce: https://stackoverflow.com/questions/36068631/sharpdx-3-0-2-d3d11-how-to-load-texture-from-file-and-make-it-to-work-in-shade
 
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(description.Format);
+            Device = device;
 
             DataRectangle[] rectangles = new DataRectangle[slicesDataPointers.Length];
             for (int i = 0; i < rectangles.Length; i++)
@@ -77,16 +80,18 @@ namespace ComputeShaders
                 rectangles[i] = new DataRectangle(slicesDataPointers[i], description.Width * FormatSizeInBytes);
             }
 
-            resource = new Texture2D(device, description, rectangles);
+            resource = new Texture2D(device.device, description, rectangles);
 
         }
-        internal CSTexture2DArray(Texture2D texture)
+        internal CSTexture2DArray(Texture2D texture, CSDevice device)
         {
+            Device = device;
             resource = texture;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(texture.Description.Format);
         }
         internal CSTexture2DArray(ShaderResource<Texture2D> shaderResource)
         {
+            Device = shaderResource.Device;
             resource = shaderResource.resource;
             stagingResource = shaderResource.stagingResource;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(resource.Description.Format);
@@ -107,9 +112,9 @@ namespace ComputeShaders
         {
             return (uint)(Width * Height * Textures * FormatSizeInBytes);
         }
-        internal override ShaderResource<Texture2D> CreateSharedResource(Texture2D resource)
+        internal override ShaderResource<Texture2D> CreateSharedResource(Texture2D resource, CSDevice device)
         {
-            return new CSTexture2DArray(resource);
+            return new CSTexture2DArray(resource, device);
         }
 
         /// <summary>
@@ -141,16 +146,18 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
         /// </summary>
-        /// <param name="shader">The compute shader to connect with.</param>
+        /// <param name="device">The device to connect with.</param>
         /// <returns></returns>
-        public new CSTexture2DArray Share(ComputeShader shader)
+        public new CSTexture2DArray Share(CSDevice device)
         {
-            return new CSTexture2DArray(base.Share(shader));
+            return new CSTexture2DArray(base.Share(device));
         }
         /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
         /// </summary>
         /// <param name="another">The another shader resource to connect with</param>
         /// <returns></returns>
@@ -159,8 +166,8 @@ namespace ComputeShaders
             return new CSTexture2DArray(base.Share(another));
         }
         /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
-        /// </summary>
+        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>/// </summary>
         /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
         /// <returns></returns>
         public new CSTexture2DArray Share(IntPtr devicePointer)

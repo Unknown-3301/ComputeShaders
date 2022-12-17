@@ -11,7 +11,9 @@ namespace ComputeShaders
     /// </summary>
     public enum TextureFormat
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         Unknown = 0,
+
         R32G32B32A32_Typeless = 1,
         R32G32B32A32_Float = 2,
         R32G32B32A32_UInt = 3,
@@ -130,5 +132,6 @@ namespace ComputeShaders
         P208 = 130, // 0x00000082
         V208 = 131, // 0x00000083
         V408 = 132, // 0x00000084
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 }

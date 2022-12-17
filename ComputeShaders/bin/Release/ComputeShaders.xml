@@ -745,7 +745,7 @@
         </member>
         <member name="M:ComputeShaders.Utilities.GetObjectFromIntPtr``1(System.IntPtr)">
             <summary>
-            returns the object from the pointer given
+            returns the object from <paramref name="intPtr"/>.
             </summary>
             <typeparam name="T">The object type</typeparam>
             <param name="intPtr">the pointer to the object data in memory</param>

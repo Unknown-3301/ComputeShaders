@@ -8,19 +8,24 @@ namespace ComputeShaders
     /// </summary>
     public class CSCBuffer<T> : System.IDisposable where T : struct
     {
-        public System.IntPtr BufferNativePointer { get => buffer.NativePointer; }
+        /// <summary>
+        /// The device connected to this resource.
+        /// </summary>
+        public CSDevice Device { get; private set; }
+
         internal Buffer buffer { get; private set; }
 
-        internal CSCBuffer(Device device, T dataStruct, int sizeInBytes)
+        internal CSCBuffer(CSDevice device, T dataStruct, int sizeInBytes)
         {
             using (DataStream data = new DataStream(sizeInBytes, true, true))
             {
                 data.Write(dataStruct);
                 data.Position = 0;
+                Device = device;
 
                 try
                 {
-                    buffer = new Buffer(device, data, new BufferDescription()
+                    buffer = new Buffer(device.device, data, new BufferDescription()
                     {
                         SizeInBytes = sizeInBytes,
                         Usage = ResourceUsage.Default,
@@ -32,10 +37,6 @@ namespace ComputeShaders
                     throw new System.Exception("ERROR while creating a buffer. NOTE: make sure your data size (int bytes) is a multiple of 16");
                 }
             }
-        }
-        internal CSCBuffer(Buffer buffer)
-        {
-            this.buffer = buffer;
         }
 
         /// <summary>

@@ -28,16 +28,17 @@ namespace ComputeShaders
         /// </summary>
         public TextureFormat Format { get => (TextureFormat)resource.Description.Format; }
 
-        internal CSTexture2D(Device device, int width, int height, Texture2DDescription description)
+        internal CSTexture2D(CSDevice device, int width, int height, Texture2DDescription description)
         {
             Texture2DDescription dDescription = description;
             dDescription.Width = width;
             dDescription.Height = height;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(description.Format);
+            Device = device;
 
-            resource = new Texture2D(device, dDescription);
+            resource = new Texture2D(device.device, dDescription);
         }
-        internal CSTexture2D(Device device, Bitmap bitmap, Texture2DDescription description)
+        internal CSTexture2D(CSDevice device, Bitmap bitmap, Texture2DDescription description)
         {
             // souce: https://stackoverflow.com/questions/36068631/sharpdx-3-0-2-d3d11-how-to-load-texture-from-file-and-make-it-to-work-in-shade
 
@@ -45,26 +46,30 @@ namespace ComputeShaders
             description.Width = bitmap.Width;
             description.Height = bitmap.Height;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(description.Format);
+            Device = device;
 
-            resource = new Texture2D(device, description, Utilities.GetReversedBitmap(bitmap, out temp));
+            resource = new Texture2D(device.device, description, Utilities.GetReversedBitmap(bitmap, out temp));
             temp.Dispose();
         }
-        internal CSTexture2D(Device device, IntPtr dataPointer, Texture2DDescription description)
+        internal CSTexture2D(CSDevice device, IntPtr dataPointer, Texture2DDescription description)
         {
             // souce: https://stackoverflow.com/questions/36068631/sharpdx-3-0-2-d3d11-how-to-load-texture-from-file-and-make-it-to-work-in-shade
 
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(description.Format);
 
-            resource = new Texture2D(device, description, new DataRectangle(dataPointer, description.Width * FormatSizeInBytes));
+            Device = device;
+            resource = new Texture2D(device.device, description, new DataRectangle(dataPointer, description.Width * FormatSizeInBytes));
 
         }
-        internal CSTexture2D(Texture2D texture)
+        internal CSTexture2D(Texture2D texture, CSDevice device)
         {
+            Device = device;
             resource = texture;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(texture.Description.Format);
         }
         internal CSTexture2D(ShaderResource<Texture2D> shaderResource)
         {
+            Device = shaderResource.Device;
             resource = shaderResource.resource;
             stagingResource = shaderResource.stagingResource;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(resource.Description.Format);
@@ -85,9 +90,9 @@ namespace ComputeShaders
         {
             return (uint)(Width * Height * FormatSizeInBytes);
         }
-        internal override ShaderResource<Texture2D> CreateSharedResource(Texture2D resource)
+        internal override ShaderResource<Texture2D> CreateSharedResource(Texture2D resource, CSDevice device)
         {
-            return new CSTexture2D(resource);
+            return new CSTexture2D(resource, device);
         }
 
         /// <summary>
@@ -119,29 +124,31 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Connects this resource to another compute shader so that data can read/write between the resource and the compute shader or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
         /// </summary>
-        /// <param name="shader">The compute shader to connect with.</param>
+        /// <param name="device">The device to connect with.</param>
         /// <returns></returns>
-        public CSTexture2D Share(ComputeShader shader)
+        public new CSTexture2D Share(CSDevice device)
         {
-            return new CSTexture2D(base.Share(shader));
+            return new CSTexture2D(base.Share(device));
         }
         /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
+        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
         /// </summary>
         /// <param name="another">The another shader resource to connect with</param>
         /// <returns></returns>
-        public CSTexture2D Share<T>(ShaderResource<T> another) where T : Resource
+        public new CSTexture2D Share<T>(ShaderResource<T> another) where T : Resource
         {
             return new CSTexture2D(base.Share(another));
         }
         /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. NOTE: after calling this function if any changes occured to the resource or the shared version then Flush() must be called on the changed resource.
-        /// </summary>
+        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
+        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>/// </summary>
         /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
         /// <returns></returns>
-        public CSTexture2D Share(IntPtr devicePointer)
+        public new CSTexture2D Share(IntPtr devicePointer)
         {
             return new CSTexture2D(base.Share(devicePointer));
         }

@@ -6,6 +6,9 @@ using System.Drawing.Imaging;
 
 namespace ComputeShaders
 {
+    /// <summary>
+    /// A class to store random functions used in the library.
+    /// </summary>
     public static class Utilities
     {
         /// <summary>
@@ -32,9 +35,10 @@ namespace ComputeShaders
             return intPtr;
         }
         /// <summary>
-        /// Get the data of a bitmap but upsidedown and the red and blue channels are swapped
+        /// Get the data of a bitmap but upsidedown and the red and blue channels are swapped.
         /// </summary>
         /// <param name="bitmap"></param>
+        /// <param name="temp">temporary bitmap that must be disposed after using <see cref="SharpDX.DataRectangle"/>. </param>
         /// <returns></returns>
         public static SharpDX.DataRectangle GetReversedBitmap(Bitmap bitmap, out Bitmap temp)
         {
@@ -102,15 +106,9 @@ namespace ComputeShaders
         {
             return typeof(D).GetField(variableName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(obj);
         }
-        public static T GetPrivateFieldValue<T>(this object obj, string name)
-        {
-            // Set the flags so that private and public fields from instances will be found
-            var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-            var field = obj.GetType().GetField(name, bindingFlags);
-            return (T)field?.GetValue(obj);
-        }
+      
         /// <summary>
-        /// returns the object from the pointer given
+        /// returns the object from <paramref name="intPtr"/>.
         /// </summary>
         /// <typeparam name="T">The object type</typeparam>
         /// <param name="intPtr">the pointer to the object data in memory</param>

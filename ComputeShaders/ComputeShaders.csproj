@@ -35,6 +35,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\ComputeShaders.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="SharpDX, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
@@ -68,6 +69,7 @@
   <ItemGroup>
     <Compile Include="ComputeShader.cs" />
     <Compile Include="CSCBuffer.cs" />
+    <Compile Include="CSDevice.cs" />
     <Compile Include="CSDeviceCreationFlag.cs" />
     <Compile Include="CSStructuredBuffer.cs" />
     <Compile Include="CSTexture2D.cs" />
