@@ -105,7 +105,7 @@ device.Dispatch(width / 8f, 1, 1);
 ```
 
 ## Sharing Shader Resources
-Resources are created through a device which means they are connected to the that device and they can be used ONLY on that device. This means that if we have 2 textures (example) from 2 different devices, we can not transfer data between the textures using the GPU.
+Resources are created through a device which means they are connected to that device and they can be ONLY used on that device. This means that if we have 2 textures (example) from 2 different devices, we can not transfer data between the textures using the GPU.
 ![sharing1Edited](https://user-images.githubusercontent.com/39702846/208240118-1345c55c-7fd3-41ea-a9f6-e8570c10a45a.png)
 
 While it is not required to transfer data using the GPU, it is a lot faster than using the CPU. To transfer data using the GPU you need to use the Share function. It is a function in every resource class that creates a resource clone that is connect to a different device and to the original resource. To use this function the resource must have 'allow sharing' true, which can be set when creating the resource
