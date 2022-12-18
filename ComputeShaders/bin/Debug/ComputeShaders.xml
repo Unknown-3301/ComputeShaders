@@ -76,7 +76,7 @@
             <summary>
             Creates a compute shader connected to this device.
             </summary>
-            <param name="shaderByteCode">The byte code of the compiled shader.</param>
+            <param name="shaderByteCode">The byte code of the compiled shader. You can get the compiled byte array of a shader file using <see cref="M:ComputeShaders.ComputeShader.CompileComputeShader(System.String,System.String,System.String)"/></param>
         </member>
         <member name="M:ComputeShaders.CSDevice.CreateComputeShader(System.String,System.String,System.String)">
             <summary>
@@ -232,6 +232,27 @@
             Sets the current compute shader in use to <paramref name="newShader"/>.
             </summary>
             <param name="newShader">The new compute shader to use.</param>
+        </member>
+        <member name="M:ComputeShaders.CSDevice.Dispose">
+            <summary>
+            Disposes the unmanaged data. 
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.CSDevice.op_Equality(ComputeShaders.CSDevice,ComputeShaders.CSDevice)">
+            <summary>
+            If 2 devices have the same device native pointer
+            </summary>
+            <param name="d1"></param>
+            <param name="d2"></param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.CSDevice.op_Inequality(ComputeShaders.CSDevice,ComputeShaders.CSDevice)">
+            <summary>
+            If 2 devices do not have the same device native pointer
+            </summary>
+            <param name="d1"></param>
+            <param name="d2"></param>
+            <returns></returns>
         </member>
         <member name="T:ComputeShaders.CSDeviceCreationFlags">
             <summary>
@@ -745,7 +766,7 @@
         </member>
         <member name="M:ComputeShaders.Utilities.GetObjectFromIntPtr``1(System.IntPtr)">
             <summary>
-            returns the object from the pointer given
+            returns the object from <paramref name="intPtr"/>.
             </summary>
             <typeparam name="T">The object type</typeparam>
             <param name="intPtr">the pointer to the object data in memory</param>

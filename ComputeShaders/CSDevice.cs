@@ -11,7 +11,7 @@ namespace ComputeShaders
     /// <summary>
     /// The main class for running compute shaders (Direct3D 11)
     /// </summary>
-    public class CSDevice
+    public class CSDevice : IDisposable
     {
         internal Device device;
 
@@ -56,7 +56,7 @@ namespace ComputeShaders
         /// <summary>
         /// Creates a compute shader connected to this device.
         /// </summary>
-        /// <param name="shaderByteCode">The byte code of the compiled shader.</param>
+        /// <param name="shaderByteCode">The byte code of the compiled shader. You can get the compiled byte array of a shader file using <see cref="ComputeShader.CompileComputeShader(string, string, string)"/></param>
         public ComputeShader CreateComputeShader(byte[] shaderByteCode)
         {
             return new ComputeShader(shaderByteCode, this);
@@ -376,5 +376,28 @@ namespace ComputeShaders
         {
             device.ImmediateContext.ComputeShader.Set(newShader.computeShader);
         }
+
+        /// <summary>
+        /// Disposes the unmanaged data. 
+        /// </summary>
+        public void Dispose()
+        {
+            device.Dispose();
+        }
+
+        /// <summary>
+        /// If 2 devices have the same device native pointer
+        /// </summary>
+        /// <param name="d1"></param>
+        /// <param name="d2"></param>
+        /// <returns></returns>
+        public static bool operator ==(CSDevice d1, CSDevice d2) => d1.DeviceNativePointer == d2.DeviceNativePointer;
+        /// <summary>
+        /// If 2 devices do not have the same device native pointer
+        /// </summary>
+        /// <param name="d1"></param>
+        /// <param name="d2"></param>
+        /// <returns></returns>
+        public static bool operator !=(CSDevice d1, CSDevice d2) => d1.DeviceNativePointer != d2.DeviceNativePointer;
     }
 }

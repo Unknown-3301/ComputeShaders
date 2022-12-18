@@ -99,7 +99,7 @@ namespace ComputeShaders
         /// <param name="destination">The resource to copy to.</param>
         public void CopyTo(ShaderResource<T> destination)
         {
-            if (destination.resource.Device != resource.Device)
+            if (destination.Device != Device)
             {
                 destination.WriteToRawData(desBox =>
                 {
