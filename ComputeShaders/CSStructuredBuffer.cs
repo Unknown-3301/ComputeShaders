@@ -28,9 +28,31 @@ namespace ComputeShaders
         /// </summary>
         public int ElementSizeInBytes { get => elementSizeInBytes; }
 
-        T[] _elements;
-        internal T[] elements { get => _elements; private set { _elements = value; } }
+        internal CSStructuredBuffer(CSDevice device, System.IntPtr pointer, int length, int eachElementSizeInBytes, bool allowShare)
+        {
+            elementSizeInBytes = eachElementSizeInBytes;
+            numberOfElements = length;
+            int arraySize = length * eachElementSizeInBytes;
+            Device = device;
 
+            using (DataStream stream = new DataStream(arraySize, true, true))
+            {
+                byte[] bytes = new byte[arraySize];
+
+                stream.Write(pointer, 0, arraySize);
+
+                stream.Position = 0;
+
+                resource = new Buffer(device.device, stream, new BufferDescription()
+                {
+                    SizeInBytes = arraySize,
+                    Usage = ResourceUsage.Default,
+                    BindFlags = BindFlags.ShaderResource | BindFlags.UnorderedAccess,
+                    OptionFlags = ResourceOptionFlags.BufferStructured | (allowShare ? ResourceOptionFlags.Shared : ResourceOptionFlags.None),
+                    StructureByteStride = eachElementSizeInBytes,
+                });
+            }
+        }
         internal CSStructuredBuffer(CSDevice device, T[] array, int eachElementSizeInBytes, bool allowShare)
         {
             elementSizeInBytes = eachElementSizeInBytes;
@@ -43,15 +65,17 @@ namespace ComputeShaders
                 throw new System.Exception();
             }
 
-            elements = new T[array.Length];
 
             using (DataStream stream = new DataStream(arraySize, true, true))
             {
-                for (int i = 0; i < array.Length; i++)
-                {
-                    stream.Write(array[i]);
-                    elements[i] = array[i];
-                }
+                byte[] bytes = new byte[arraySize];
+                GCHandle arrayHandle;
+
+                System.IntPtr arrayPointer = Utilities.GetIntPtr(array, out arrayHandle);
+                stream.Write(arrayPointer, 0, arraySize);
+
+                arrayHandle.Free();
+
                 stream.Position = 0;
 
                 resource = new Buffer(device.device, stream, new BufferDescription()
@@ -76,15 +100,16 @@ namespace ComputeShaders
                 throw new System.Exception();
             }
 
-            elements = new T[array.Count];
-
             using (DataStream stream = new DataStream(arraySize, true, true))
             {
-                for (int i = 0; i < array.Count; i++)
-                {
-                    stream.Write(array[i]);
-                    elements[i] = array[i];
-                }
+                byte[] bytes = new byte[arraySize];
+                GCHandle arrayHandle;
+
+                System.IntPtr arrayPointer = Utilities.GetIntPtr(Utilities.GetPrivteVariableDataUncasted<List<T>, T[]>("_items", array), out arrayHandle);
+                stream.Write(arrayPointer, 0, arraySize);
+
+                arrayHandle.Free();
+
                 stream.Position = 0;
 
                 try
@@ -112,10 +137,6 @@ namespace ComputeShaders
             Device = device;
 
             resource = buffer;
-
-            elements = new T[numberOfElements];
-            EnableCPU_Raw_ReadWrite();
-            GetData(ref _elements);
         }
         internal CSStructuredBuffer(ShaderResource<Buffer> buffer, int numberOfElements, int elementSizeInBytes)
         {
@@ -124,10 +145,6 @@ namespace ComputeShaders
             Device = buffer.Device;
 
             resource = buffer.resource;
-
-            elements = new T[numberOfElements];
-            EnableCPU_Raw_ReadWrite();
-            GetData(ref _elements);
         }
 
         /// <summary>
@@ -143,12 +160,9 @@ namespace ComputeShaders
         /// Updates the data stored in the buffer using the cpu.
         /// </summary>
         /// <param name="list">The new data</param>
-        [System.Obsolete("This function is so slow. Try SetData(T[] array) instead.")]
         public void SetData(List<T> list)
         {
-            list.CopyTo(elements);
-
-            resource.Device.ImmediateContext.UpdateSubresource(elements, resource);
+            resource.Device.ImmediateContext.UpdateSubresource(Utilities.GetPrivteVariableDataCasted<List<T>, T[]>("_items", list), resource);
         }
         /// <summary>
         /// Copy the data in the buffer to the array using the cpu.
@@ -172,10 +186,9 @@ namespace ComputeShaders
         }
         /// <summary>
         /// Copy the data in the buffer to the list using the cpu.
-        /// NOTE: it's prefered to use the GetData(ref T[] array) because using a list (this function) is alot slower
+        /// NOTE: <see cref="List{T}.Count"/> of <paramref name="list"/> must be bigger than or equal to <see cref="Length"/>
         /// </summary>
         /// <param name="list">the list to copy to</param>
-        [System.Obsolete("This function is so slow. Try GetData(ref T[] array) instead.")]
         public void GetData(ref List<T> list)
         {
             if (!CPU_ReadWrite)
@@ -187,10 +200,8 @@ namespace ComputeShaders
             DataBox dataBox = stagingResource.Device.ImmediateContext.MapSubresource(stagingResource, 0, MapMode.Read, MapFlags.None);
 
             GCHandle handle;
-            SharpDX.Utilities.CopyMemory(Utilities.GetIntPtr(elements, out handle), dataBox.DataPointer, numberOfElements * elementSizeInBytes);
+            SharpDX.Utilities.CopyMemory(Utilities.GetIntPtr(Utilities.GetPrivteVariableDataCasted<List<T>, T[]>("_items", list), out handle), dataBox.DataPointer, numberOfElements * elementSizeInBytes);
             handle.Free();
-
-            list = new List<T>(elements);
 
             stagingResource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
         }

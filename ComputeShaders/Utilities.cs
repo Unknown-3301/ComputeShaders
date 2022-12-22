@@ -85,7 +85,7 @@ namespace ComputeShaders
         /// <returns></returns>
         public static D GetPrivteVariableDataCasted<T, D>(string variableName, T obj)
         {
-            return (D)typeof(D).GetField(variableName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(obj);
+            return (D)typeof(T).GetField(variableName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(obj);
         }
         /// <summary>
         /// Gets the private variable from and object Uncasted
@@ -97,7 +97,7 @@ namespace ComputeShaders
         /// <returns></returns>
         public static object GetPrivteVariableDataUncasted<T, D>(string variableName, T obj)
         {
-            return typeof(D).GetField(variableName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(obj);
+            return typeof(T).GetField(variableName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(obj);
         }
       
         /// <summary>

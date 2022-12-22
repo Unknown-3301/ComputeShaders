@@ -162,6 +162,17 @@
             <param name="dataSizeInBytes">The size of the data in bytes.</param>
             <returns></returns>
         </member>
+        <member name="M:ComputeShaders.CSDevice.CreateStructuredBuffer``1(System.IntPtr,System.Int32,System.Int32,System.Boolean)">
+            <summary>
+            Creates a new StructuredBuffer connected to this device containing the data in <paramref name="dataPointer"/>.
+            </summary>
+            <typeparam name="T"></typeparam>
+            <param name="dataPointer">The pointer to the data.</param>
+            <param name="length">Number of elements.</param>
+            <param name="eachElementSizeInBytes">The size of an element in <paramref name="dataPointer"/> in bytes.</param>
+            <param name="allowSharing">Determines whether the created texture can be shared, if true then <see cref="M:ComputeShaders.CSStructuredBuffer`1.Share(ComputeShaders.CSDevice)"/> can be called.</param>
+            <returns></returns>
+        </member>
         <member name="M:ComputeShaders.CSDevice.CreateStructuredBuffer``1(``0[],System.Int32,System.Boolean)">
             <summary>
             Creates a new StructuredBuffer connected to this device containing <paramref name="array"/> data.
@@ -351,7 +362,7 @@
         <member name="M:ComputeShaders.CSStructuredBuffer`1.GetData(System.Collections.Generic.List{`0}@)">
             <summary>
             Copy the data in the buffer to the list using the cpu.
-            NOTE: it's prefered to use the GetData(ref T[] array) because using a list (this function) is alot slower
+            NOTE: <see cref="P:System.Collections.Generic.List`1.Count"/> of <paramref name="list"/> must be bigger than or equal to <see cref="P:ComputeShaders.CSStructuredBuffer`1.Length"/>
             </summary>
             <param name="list">the list to copy to</param>
         </member>

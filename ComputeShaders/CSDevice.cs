@@ -267,6 +267,19 @@ namespace ComputeShaders
         }
 
         /// <summary>
+        /// Creates a new StructuredBuffer connected to this device containing the data in <paramref name="dataPointer"/>.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="dataPointer">The pointer to the data.</param>
+        /// <param name="length">Number of elements.</param>
+        /// <param name="eachElementSizeInBytes">The size of an element in <paramref name="dataPointer"/> in bytes.</param>
+        /// <param name="allowSharing">Determines whether the created texture can be shared, if true then <see cref="CSStructuredBuffer{T}.Share(CSDevice)"/> can be called.</param>
+        /// <returns></returns>
+        public CSStructuredBuffer<T> CreateStructuredBuffer<T>(IntPtr dataPointer, int length, int eachElementSizeInBytes, bool allowSharing = false) where T : struct
+        {
+            return new CSStructuredBuffer<T>(this, dataPointer, length, eachElementSizeInBytes, allowSharing);
+        }
+        /// <summary>
         /// Creates a new StructuredBuffer connected to this device containing <paramref name="array"/> data.
         /// </summary>
         /// <typeparam name="T"></typeparam>
