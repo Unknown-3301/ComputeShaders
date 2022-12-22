@@ -131,7 +131,8 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Updates the data stored in the buffer
+        /// Updates the data stored in the buffer using the cpu. Note that <see cref="SetData(T[])"/> is faster than <see cref="ShaderResource{T}.WriteToRawData(System.Action{TextureDataBox})"/> only on small scales. 
+        /// It is recommended to use <see cref="ShaderResource{T}.WriteToRawData(System.Action{TextureDataBox})"/> instead of <see cref="SetData(T[])"/> if the buffer size in bytes is bigger than ~1,200,000.
         /// </summary>
         /// <param name="array">The new data</param>
         public void SetData(T[] array)
@@ -139,7 +140,7 @@ namespace ComputeShaders
             resource.Device.ImmediateContext.UpdateSubresource(array, resource);
         }
         /// <summary>
-        /// Updates the data stored in the buffer
+        /// Updates the data stored in the buffer using the cpu.
         /// </summary>
         /// <param name="list">The new data</param>
         [System.Obsolete("This function is so slow. Try SetData(T[] array) instead.")]
@@ -150,7 +151,7 @@ namespace ComputeShaders
             resource.Device.ImmediateContext.UpdateSubresource(elements, resource);
         }
         /// <summary>
-        /// Copy the data in the buffer to the array
+        /// Copy the data in the buffer to the array using the cpu.
         /// </summary>
         /// <param name="array">the array to copy to</param>
         public void GetData(ref T[] array)
@@ -170,7 +171,7 @@ namespace ComputeShaders
             stagingResource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
         }
         /// <summary>
-        /// Copy the data in the buffer to the list.
+        /// Copy the data in the buffer to the list using the cpu.
         /// NOTE: it's prefered to use the GetData(ref T[] array) because using a list (this function) is alot slower
         /// </summary>
         /// <param name="list">the list to copy to</param>
@@ -194,6 +195,15 @@ namespace ComputeShaders
             stagingResource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
         }
 
+        /// <summary>
+        /// Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+        /// </summary>
+        /// <param name="dataPointer">The pointer to the raw data.</param>
+        public override void UpdateSubresource(System.IntPtr dataPointer)
+        {
+            Device.device.ImmediateContext.UpdateSubresource(new DataBox(dataPointer, Length * elementSizeInBytes, Length * elementSizeInBytes), resource);
+        }
+
         internal override uint GetResourceSize()
         {
             return (uint)(numberOfElements * elementSizeInBytes);
@@ -204,12 +214,12 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
-        /// <br>- may increase the performance.</br>
-        /// <br>- decrease the memory usage to almost the half.</br>
+        /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
+        /// <br>- to read the resource raw data using <see cref="ShaderResource{T}.ReadFromRawData(Action{TextureDataBox})"/>.</br>
+        /// <br>- to write to the resource raw data using <see cref="ShaderResource{T}.WriteToRawData(Action{TextureDataBox})"/> function.</br>
         /// <br>and has the disadvantages:</br>
-        /// <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
-        /// <br>- can not write to the resource raw data using WriteToRawData function.</br>
+        /// <br>- may decrease the performance.</br>
+        /// <br>- increase the memory usage to almost the double.</br>
         /// </summary>
         public override void EnableCPU_Raw_ReadWrite()
         {

@@ -17,6 +17,10 @@ namespace ComputeShaders
         internal UnorderedAccessView unorderedAccessView;
 
         /// <summary>
+        /// The native pointer to the sharpDX resource.
+        /// </summary>
+        public IntPtr ResourceNativePointer { get => resource.NativePointer; }
+        /// <summary>
         /// The device connected to this resource.
         /// </summary>
         public CSDevice Device { get; protected set; }
@@ -168,11 +172,20 @@ namespace ComputeShaders
             }
         }
 
+        /// <summary>
+        /// Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+        /// </summary>
+        /// <param name="dataPointer">The pointer to the raw data.</param>
+        /// <exception cref="NotImplementedException"></exception>
+        public virtual void UpdateSubresource(IntPtr dataPointer)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-        /// <br>- to read the resource raw data using GetRawDataIntPtr function.</br>
-        /// <br>- to write to the resource raw data using WriteToRawData function.</br>
+        /// <br>- to read the resource raw data using <see cref="ReadFromRawData(Action{TextureDataBox})"/>.</br>
+        /// <br>- to write to the resource raw data using <see cref="WriteToRawData(Action{TextureDataBox})"/>.</br>
         /// <br>and has the disadvantages:</br>
         /// <br>- may decrease the performance.</br>
         /// <br>- increase the memory usage to almost the double.</br>
@@ -189,8 +202,8 @@ namespace ComputeShaders
         /// <br>- may increase the performance.</br>
         /// <br>- decrease the memory usage to almost the half.</br>
         /// <br>and has the disadvantages:</br>
-        /// <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
-        /// <br>- can not write to the resource raw data using WriteToRawData function.</br>
+        /// <br>- can not read the resource raw data using <see cref="ReadFromRawData(Action{TextureDataBox})"/>.</br>
+        /// <br>- can not write to the resource raw data using <see cref="WriteToRawData(Action{TextureDataBox})"/>.</br>
         /// </summary>
         public void DisablesCPU_Raw_ReadWrite()
         {

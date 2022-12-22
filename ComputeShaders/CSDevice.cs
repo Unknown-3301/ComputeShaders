@@ -136,7 +136,7 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSTexture2D CreateTexture2D(string imageRelativePath, bool allowSharing = false)
         {
-            using (Bitmap b = new Bitmap(imageRelativePath))
+            using (Bitmap b = Utilities.GetFlippedBitmap(imageRelativePath))
             {
                 return CreateTexture2D(b, allowSharing);
             }

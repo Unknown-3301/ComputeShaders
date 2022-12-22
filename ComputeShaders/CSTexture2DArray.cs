@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 namespace ComputeShaders
 {
     /// <summary>
-    /// The class that holds the texture array data. This class can be created in ComputeShader class
+    /// The class that holds the texture array data.
     /// </summary>
     public class CSTexture2DArray : ShaderResource<Texture2D>
     {
@@ -50,7 +50,6 @@ namespace ComputeShaders
             // souce: https://stackoverflow.com/questions/36068631/sharpdx-3-0-2-d3d11-how-to-load-texture-from-file-and-make-it-to-work-in-shade
 
             List<DataRectangle> rectangles = new List<DataRectangle>();
-            List<Bitmap> temps = new List<Bitmap>();
             Device = device;
 
             foreach (Bitmap bitmap in bitmaps)
@@ -59,13 +58,14 @@ namespace ComputeShaders
                 description.Height = bitmap.Height;
                 FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(description.Format);
 
-                Bitmap temp;
-                rectangles.Add(Utilities.GetReversedBitmap(bitmap, out temp));
-                temps.Add(temp);
+                BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
+
+                rectangles.Add(new DataRectangle(data.Scan0, data.Stride));
+
+                bitmap.UnlockBits(data);
             }
 
             resource = new Texture2D(device.device, description, rectangles.ToArray());
-            temps.ForEach(x => x.Dispose());
         }
         internal CSTexture2DArray(CSDevice device, IntPtr[] slicesDataPointers, Texture2DDescription description)
         {
@@ -118,12 +118,12 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
-        /// <br>- may increase the performance.</br>
-        /// <br>- decrease the memory usage to almost the half.</br>
+        /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
+        /// <br>- to read the resource raw data using <see cref="ShaderResource{T}.ReadFromRawData(Action{TextureDataBox})"/>.</br>
+        /// <br>- to write to the resource raw data using <see cref="ShaderResource{T}.WriteToRawData(Action{TextureDataBox})"/> function.</br>
         /// <br>and has the disadvantages:</br>
-        /// <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
-        /// <br>- can not write to the resource raw data using WriteToRawData function.</br>
+        /// <br>- may decrease the performance.</br>
+        /// <br>- increase the memory usage to almost the double.</br>
         /// </summary>
         public override void EnableCPU_Raw_ReadWrite()
         {
@@ -143,6 +143,15 @@ namespace ComputeShaders
                 SampleDescription = resource.Description.SampleDescription,
                 OptionFlags = ResourceOptionFlags.None,
             });
+        }
+
+        /// <summary>
+        /// Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+        /// </summary>
+        /// <param name="dataPointer">The pointer to the raw data.</param>
+        public override void UpdateSubresource(IntPtr dataPointer)
+        {
+            Device.device.ImmediateContext.UpdateSubresource(new DataBox(dataPointer, Width * FormatSizeInBytes, Height * Width * FormatSizeInBytes), resource);
         }
 
         /// <summary>

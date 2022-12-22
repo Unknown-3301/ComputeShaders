@@ -35,51 +35,44 @@ namespace ComputeShaders
             return intPtr;
         }
         /// <summary>
-        /// Get the data of a bitmap but upsidedown and the red and blue channels are swapped.
+        /// Get the data of a image in the path but upsidedown and the red and blue channels are swapped.
         /// </summary>
-        /// <param name="bitmap"></param>
-        /// <param name="temp">temporary bitmap that must be disposed after using <see cref="SharpDX.DataRectangle"/>. </param>
+        /// <param name="imagePath">The path to the image.</param>
         /// <returns></returns>
-        public static SharpDX.DataRectangle GetReversedBitmap(Bitmap bitmap, out Bitmap temp)
+        public static Bitmap GetFlippedBitmap(string imagePath)
         {
 
             // source: https://www.codeproject.com/Questions/167235/How-to-swap-Red-and-Blue-channels-on-bitmap
-            
-            temp = new Bitmap(bitmap.Width, bitmap.Height);
 
-            var imageAttr = new ImageAttributes();
-            imageAttr.SetColorMatrix(new ColorMatrix(
-                                         new[]
-                                             {
+            Bitmap newBitmap;
+
+            using (Bitmap bitmap = new Bitmap(imagePath))
+            {
+                newBitmap = new Bitmap(bitmap.Width, bitmap.Height);
+
+                var imageAttr = new ImageAttributes();
+                imageAttr.SetColorMatrix(new ColorMatrix(
+                                             new[]
+                                                 {
                                                  new[] {0.0F, 0.0F, 1.0F, 0.0F, 0.0F},
                                                  new[] {0.0F, 1.0F, 0.0F, 0.0F, 0.0F},
                                                  new[] {1.0F, 0.0F, 0.0F, 0.0F, 0.0F},
                                                  new[] {0.0F, 0.0F, 0.0F, 1.0F, 0.0F},
                                                  new[] {0.0F, 0.0F, 0.0F, 0.0F, 1.0F}
-                                             }
-                                         ));
+                                                 }
+                                             ));
 
-            GraphicsUnit pixel = GraphicsUnit.Pixel;
-            using (Graphics g = Graphics.FromImage(temp))
-            {
-                g.DrawImage(bitmap, Rectangle.Round(bitmap.GetBounds(ref pixel)), 0, 0, bitmap.Width, bitmap.Height,
-                            GraphicsUnit.Pixel, imageAttr);
+                GraphicsUnit pixel = GraphicsUnit.Pixel;
+                using (Graphics g = Graphics.FromImage(newBitmap))
+                {
+                    g.DrawImage(bitmap, Rectangle.Round(bitmap.GetBounds(ref pixel)), 0, 0, bitmap.Width, bitmap.Height,
+                                GraphicsUnit.Pixel, imageAttr);
+                }
+
+                newBitmap.RotateFlip(RotateFlipType.RotateNoneFlipY);
             }
 
-            temp.RotateFlip(RotateFlipType.RotateNoneFlipY);
-            BitmapData data = temp.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
-
-            SharpDX.DataRectangle rect;
-            try
-            {
-                rect = new SharpDX.DataRectangle(data.Scan0, data.Stride);
-            }
-            finally
-            {
-                temp.UnlockBits(data);
-            }
-
-            return rect;
+            return newBitmap;
         }
 
         /// <summary>

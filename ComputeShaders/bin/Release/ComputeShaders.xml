@@ -331,37 +331,44 @@
         </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.SetData(`0[])">
             <summary>
-            Updates the data stored in the buffer
+            Updates the data stored in the buffer using the cpu. Note that <see cref="M:ComputeShaders.CSStructuredBuffer`1.SetData(`0[])"/> is faster than <see cref="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})"/> only on small scales. 
+            It is recommended to use <see cref="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})"/> instead of <see cref="M:ComputeShaders.CSStructuredBuffer`1.SetData(`0[])"/> if the buffer size in bytes is bigger than ~1,200,000.
             </summary>
             <param name="array">The new data</param>
         </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.SetData(System.Collections.Generic.List{`0})">
             <summary>
-            Updates the data stored in the buffer
+            Updates the data stored in the buffer using the cpu.
             </summary>
             <param name="list">The new data</param>
         </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.GetData(`0[]@)">
             <summary>
-            Copy the data in the buffer to the array
+            Copy the data in the buffer to the array using the cpu.
             </summary>
             <param name="array">the array to copy to</param>
         </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.GetData(System.Collections.Generic.List{`0}@)">
             <summary>
-            Copy the data in the buffer to the list.
+            Copy the data in the buffer to the list using the cpu.
             NOTE: it's prefered to use the GetData(ref T[] array) because using a list (this function) is alot slower
             </summary>
             <param name="list">the list to copy to</param>
         </member>
+        <member name="M:ComputeShaders.CSStructuredBuffer`1.UpdateSubresource(System.IntPtr)">
+            <summary>
+            Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+            </summary>
+            <param name="dataPointer">The pointer to the raw data.</param>
+        </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.EnableCPU_Raw_ReadWrite">
             <summary>
-            Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
-            <br>- may increase the performance.</br>
-            <br>- decrease the memory usage to almost the half.</br>
+            Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
+            <br>- to read the resource raw data using <see cref="!:ShaderResource&lt;T&gt;.ReadFromRawData(Action&lt;TextureDataBox&gt;)"/>.</br>
+            <br>- to write to the resource raw data using <see cref="!:ShaderResource&lt;T&gt;.WriteToRawData(Action&lt;TextureDataBox&gt;)"/> function.</br>
             <br>and has the disadvantages:</br>
-            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
-            <br>- can not write to the resource raw data using WriteToRawData function.</br>
+            <br>- may decrease the performance.</br>
+            <br>- increase the memory usage to almost the double.</br>
             </summary>
         </member>
         <member name="M:ComputeShaders.CSStructuredBuffer`1.Share(ComputeShaders.CSDevice)">
@@ -389,7 +396,7 @@
         </member>
         <member name="T:ComputeShaders.CSTexture2D">
             <summary>
-            The class that holds the texture data. This class can be created in ComputeShader class
+            The class that holds the texture data.
             </summary>
         </member>
         <member name="P:ComputeShaders.CSTexture2D.Width">
@@ -416,13 +423,19 @@
         </member>
         <member name="M:ComputeShaders.CSTexture2D.EnableCPU_Raw_ReadWrite">
             <summary>
-            Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
-            <br>- may increase the performance.</br>
-            <br>- decrease the memory usage to almost the half.</br>
+            Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
+            <br>- to read the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.ReadFromRawData(System.Action{ComputeShaders.TextureDataBox})"/>.</br>
+            <br>- to write to the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})"/> function.</br>
             <br>and has the disadvantages:</br>
-            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
-            <br>- can not write to the resource raw data using WriteToRawData function.</br>
+            <br>- may decrease the performance.</br>
+            <br>- increase the memory usage to almost the double.</br>
             </summary>
+        </member>
+        <member name="M:ComputeShaders.CSTexture2D.UpdateSubresource(System.IntPtr)">
+            <summary>
+            Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+            </summary>
+            <param name="dataPointer">The pointer to the raw data.</param>
         </member>
         <member name="M:ComputeShaders.CSTexture2D.Share(ComputeShaders.CSDevice)">
             <summary>
@@ -449,7 +462,7 @@
         </member>
         <member name="T:ComputeShaders.CSTexture2DArray">
             <summary>
-            The class that holds the texture array data. This class can be created in ComputeShader class
+            The class that holds the texture array data.
             </summary>
         </member>
         <member name="P:ComputeShaders.CSTexture2DArray.Width">
@@ -481,13 +494,19 @@
         </member>
         <member name="M:ComputeShaders.CSTexture2DArray.EnableCPU_Raw_ReadWrite">
             <summary>
-            Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
-            <br>- may increase the performance.</br>
-            <br>- decrease the memory usage to almost the half.</br>
+            Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
+            <br>- to read the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.ReadFromRawData(System.Action{ComputeShaders.TextureDataBox})"/>.</br>
+            <br>- to write to the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})"/> function.</br>
             <br>and has the disadvantages:</br>
-            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
-            <br>- can not write to the resource raw data using WriteToRawData function.</br>
+            <br>- may decrease the performance.</br>
+            <br>- increase the memory usage to almost the double.</br>
             </summary>
+        </member>
+        <member name="M:ComputeShaders.CSTexture2DArray.UpdateSubresource(System.IntPtr)">
+            <summary>
+            Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+            </summary>
+            <param name="dataPointer">The pointer to the raw data.</param>
         </member>
         <member name="M:ComputeShaders.CSTexture2DArray.Share(ComputeShaders.CSDevice)">
             <summary>
@@ -575,6 +594,11 @@
             A base class for all shader Resources (exept constant buffer).
             </summary>
         </member>
+        <member name="P:ComputeShaders.ShaderResource`1.ResourceNativePointer">
+            <summary>
+            The native pointer to the sharpDX resource.
+            </summary>
+        </member>
         <member name="P:ComputeShaders.ShaderResource`1.Device">
             <summary>
             The device connected to this resource.
@@ -640,11 +664,18 @@
             </summary>
             <returns></returns>
         </member>
+        <member name="M:ComputeShaders.ShaderResource`1.UpdateSubresource(System.IntPtr)">
+            <summary>
+            Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+            </summary>
+            <param name="dataPointer">The pointer to the raw data.</param>
+            <exception cref="T:System.NotImplementedException"></exception>
+        </member>
         <member name="M:ComputeShaders.ShaderResource`1.EnableCPU_Raw_ReadWrite">
             <summary>
             Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-            <br>- to read the resource raw data using GetRawDataIntPtr function.</br>
-            <br>- to write to the resource raw data using WriteToRawData function.</br>
+            <br>- to read the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.ReadFromRawData(System.Action{ComputeShaders.TextureDataBox})"/>.</br>
+            <br>- to write to the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})"/>.</br>
             <br>and has the disadvantages:</br>
             <br>- may decrease the performance.</br>
             <br>- increase the memory usage to almost the double.</br>
@@ -656,8 +687,8 @@
             <br>- may increase the performance.</br>
             <br>- decrease the memory usage to almost the half.</br>
             <br>and has the disadvantages:</br>
-            <br>- can not read the resource raw data using GetRawDataIntPtr function.</br>
-            <br>- can not write to the resource raw data using WriteToRawData function.</br>
+            <br>- can not read the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.ReadFromRawData(System.Action{ComputeShaders.TextureDataBox})"/>.</br>
+            <br>- can not write to the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})"/>.</br>
             </summary>
         </member>
         <member name="M:ComputeShaders.ShaderResource`1.Dispose">
@@ -736,12 +767,11 @@
             <param name="handle">The handle that should be disposed (handle.Free()) after finishing using the address</param>
             <returns></returns>
         </member>
-        <member name="M:ComputeShaders.Utilities.GetReversedBitmap(System.Drawing.Bitmap,System.Drawing.Bitmap@)">
+        <member name="M:ComputeShaders.Utilities.GetFlippedBitmap(System.String)">
             <summary>
-            Get the data of a bitmap but upsidedown and the red and blue channels are swapped.
+            Get the data of a image in the path but upsidedown and the red and blue channels are swapped.
             </summary>
-            <param name="bitmap"></param>
-            <param name="temp">temporary bitmap that must be disposed after using <see cref="T:SharpDX.DataRectangle"/>. </param>
+            <param name="imagePath">The path to the image.</param>
             <returns></returns>
         </member>
         <member name="M:ComputeShaders.Utilities.GetPrivteVariableDataCasted``2(System.String,``0)">
