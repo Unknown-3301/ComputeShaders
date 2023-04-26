@@ -226,8 +226,8 @@ namespace ComputeShaders
 
         /// <summary>
         /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-        /// <br>- to read the resource raw data using <see cref="ShaderResource{T}.ReadFromRawData(Action{TextureDataBox})"/>.</br>
-        /// <br>- to write to the resource raw data using <see cref="ShaderResource{T}.WriteToRawData(Action{TextureDataBox})"/> function.</br>
+        /// <br>- to read the resource raw data using <see cref="ShaderResource{T}.ReadFromRawData(System.Action{TextureDataBox})"/>.</br>
+        /// <br>- to write to the resource raw data using <see cref="ShaderResource{T}.WriteToRawData(System.Action{TextureDataBox})"/> function.</br>
         /// <br>and has the disadvantages:</br>
         /// <br>- may decrease the performance.</br>
         /// <br>- increase the memory usage to almost the double.</br>

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Drawing.Imaging;
+using SharpDX.DXGI;
 
 namespace ComputeShaders
 {
@@ -56,6 +57,16 @@ namespace ComputeShaders
                 default:
                     return TextureFormat.Unknown;
             }
+        }
+
+        /// <summary>
+        /// Returns the size of <paramref name="format"/> in bytes.
+        /// </summary>
+        /// <param name="format"></param>
+        /// <returns></returns>
+        public static int FormatSize(this TextureFormat format)
+        {
+            return ((Format)format).SizeOfInBytes();
         }
     }
 }

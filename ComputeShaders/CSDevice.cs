@@ -48,7 +48,11 @@ namespace ComputeShaders
                 throw new Exception("ERROR: Failed to create Device.");
             }
         }
-        internal CSDevice(IntPtr deviceNativePointer)
+        /// <summary>
+        /// Creates a new CSDevice instance from an existing Direct3D11 device.
+        /// </summary>
+        /// <param name="deviceNativePointer">The device native pointer.</param>
+        public CSDevice(IntPtr deviceNativePointer)
         {
             device = new Device(deviceNativePointer);
         }

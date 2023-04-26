@@ -72,6 +72,12 @@
             <param name="gpuAdapterIndex">The index of the adapter to enumerate.</param>
             <param name="gpuCreationgFlag">Describes parameters that are used to create a device.</param>
         </member>
+        <member name="M:ComputeShaders.CSDevice.#ctor(System.IntPtr)">
+            <summary>
+            Creates a new CSDevice instance from an existing Direct3D11 device.
+            </summary>
+            <param name="deviceNativePointer">The device native pointer.</param>
+        </member>
         <member name="M:ComputeShaders.CSDevice.CreateComputeShader(System.Byte[])">
             <summary>
             Creates a compute shader connected to this device.
@@ -375,8 +381,8 @@
         <member name="M:ComputeShaders.CSStructuredBuffer`1.EnableCPU_Raw_ReadWrite">
             <summary>
             Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-            <br>- to read the resource raw data using <see cref="!:ShaderResource&lt;T&gt;.ReadFromRawData(Action&lt;TextureDataBox&gt;)"/>.</br>
-            <br>- to write to the resource raw data using <see cref="!:ShaderResource&lt;T&gt;.WriteToRawData(Action&lt;TextureDataBox&gt;)"/> function.</br>
+            <br>- to read the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.ReadFromRawData(System.Action{ComputeShaders.TextureDataBox})"/>.</br>
+            <br>- to write to the resource raw data using <see cref="M:ComputeShaders.ShaderResource`1.WriteToRawData(System.Action{ComputeShaders.TextureDataBox})"/> function.</br>
             <br>and has the disadvantages:</br>
             <br>- may decrease the performance.</br>
             <br>- increase the memory usage to almost the double.</br>
@@ -558,46 +564,48 @@
             <param name="readAction"></param>
             <param name="sliceIndex">The index of the texture (slice) in the texture array.</param>
         </member>
-        <member name="T:ComputeShaders.MultipleOf16CSTexture2DConverter">
+        <member name="T:ComputeShaders.Diagnostics.GPUTimeMeasurer">
             <summary>
-            A class that converts CSTexture2D to Bitmap
+            A class to measure the execution time of commands done on the GPU (like Dispatch on compute shaders).
             </summary>
         </member>
-        <member name="M:ComputeShaders.MultipleOf16CSTexture2DConverter.#ctor(ComputeShaders.CSTexture2D)">
+        <member name="M:ComputeShaders.Diagnostics.GPUTimeMeasurer.#ctor(SharpDX.Direct3D11.Device)">
             <summary>
-            Creates a new CSTexture2D to Bitmap converter. NOTE: NOTE: if your texture width can be a multiple of 16, then make it a multiple of 16 and use MultipleOf16CSTexture2DConverter for better performance
+            Creates a new measurment instance.
+            </summary>
+            <param name="device">ComputeShaders D3D11 device. It must be disposed of manually.</param>
+        </member>
+        <member name="M:ComputeShaders.Diagnostics.GPUTimeMeasurer.#ctor(ComputeShaders.CSDevice)">
+            <summary>
+            Creates a new measurment instance.
+            </summary>
+            <param name="device">SharpDX D3D11 device. It must be disposed of manually.</param>
+        </member>
+        <member name="M:ComputeShaders.Diagnostics.GPUTimeMeasurer.Measure(System.Action)">
+            <summary>
+            Measures the time it takes to execute <paramref name="gpuAction"/>. Note that if this is done in <see cref="T:ComputeShaders.Windows.WindowForm"/> it is prefered to do it once every frame or less.
+            </summary>
+            <param name="gpuAction"></param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Diagnostics.GPUTimeMeasurer.Dispose">
+            <summary>
+            Disposes the unmanaged data. 
             </summary>
         </member>
-        <member name="M:ComputeShaders.MultipleOf16CSTexture2DConverter.Convert(ComputeShaders.CSTexture2D)">
+        <member name="T:ComputeShaders.Diagnostics.GPUTimeMeasurerData">
             <summary>
-            Copy the information from "source" to a bitmap
-            </summary>
-            <param name="source">The CSTexture2D to copy from</param>
-        </member>
-        <member name="M:ComputeShaders.MultipleOf16CSTexture2DConverter.Dispose">
-            <summary>
-            Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using this.
+            A struct that contains measurement data from <see cref="T:ComputeShaders.Diagnostics.GPUTimeMeasurer"/>.
             </summary>
         </member>
-        <member name="T:ComputeShaders.CSTexture2DConverter">
+        <member name="F:ComputeShaders.Diagnostics.GPUTimeMeasurerData.Reliable">
             <summary>
-            A class that converts CSTexture2D to Bitmap
+            Whether this data is reliable. If not, that means the data aren't accurate and need to be measured again.
             </summary>
         </member>
-        <member name="M:ComputeShaders.CSTexture2DConverter.#ctor(ComputeShaders.CSTexture2D)">
+        <member name="F:ComputeShaders.Diagnostics.GPUTimeMeasurerData.Time">
             <summary>
-            Creates a new CSTexture2D to Bitmap converter. NOTE: NOTE: if your texture width can be a multiple of 16, then make it a multiple of 16 and use MultipleOf16CSTexture2DConverter for better performance
-            </summary>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2DConverter.Convert(ComputeShaders.CSTexture2D)">
-            <summary>
-            Copy the information from "source" to a bitmap
-            </summary>
-            <param name="source">The CSTexture2D to copy from</param>
-        </member>
-        <member name="M:ComputeShaders.CSTexture2DConverter.Dispose">
-            <summary>
-            Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using this.
+            The time measured in microseconds (μs)
             </summary>
         </member>
         <member name="T:ComputeShaders.ShaderResource`1">
@@ -757,6 +765,13 @@
             <param name="pixelFormat">The format</param>
             <returns></returns>
         </member>
+        <member name="M:ComputeShaders.TextureFormatHelper.FormatSize(ComputeShaders.TextureFormat)">
+            <summary>
+            Returns the size of <paramref name="format"/> in bytes.
+            </summary>
+            <param name="format"></param>
+            <returns></returns>
+        </member>
         <member name="T:ComputeShaders.Utilities">
             <summary>
             A class to store random functions used in the library.
@@ -769,6 +784,14 @@
             <param name="dest">Destination pointer.</param>
             <param name="src">Source pointer.</param>
             <param name="count">Data length in bytes.</param>
+        </member>
+        <member name="M:ComputeShaders.Utilities.AccessRawData(System.Drawing.Bitmap,System.Action{System.Drawing.Imaging.BitmapData},System.Drawing.Imaging.ImageLockMode)">
+            <summary>
+            Access the bitmap raw data (using <see cref="M:System.Drawing.Bitmap.LockBits(System.Drawing.Rectangle,System.Drawing.Imaging.ImageLockMode,System.Drawing.Imaging.PixelFormat)"/>).
+            </summary>
+            <param name="bitmap"></param>
+            <param name="accessAction">The action of accessing. The raw data can only be accessed inside this action.</param>
+            <param name="accessMode">The mode for accessing.</param>
         </member>
         <member name="M:ComputeShaders.Utilities.GetIntPtr(System.Object,System.Runtime.InteropServices.GCHandle@)">
             <summary>
@@ -812,6 +835,143 @@
             <typeparam name="T">The object type</typeparam>
             <param name="intPtr">the pointer to the object data in memory</param>
             <returns></returns>
+        </member>
+        <member name="T:ComputeShaders.Windows.Input">
+            <summary>
+            The class used to detect user input (mouse or keyboard).
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.Input.MouseDeltaXPosition">
+            <summary>
+            The change in the cursor position in the x-axis.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.Input.MouseDeltaYPosition">
+            <summary>
+            The change in the cursor position in the y-axis.
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.#ctor">
+            <summary>
+            Create a new Input instance. Note that in order for the instance to register any user data, <see cref="M:ComputeShaders.Windows.Input.Update"/> must be called every frame.
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.Update">
+            <summary>
+            Updates the data about user input. This method should be called at the beginning of every frame.
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.GetMouseButtonDown(ComputeShaders.Windows.MouseButton)">
+            <summary>
+            Returns if the mouse button have been pressed this frame.
+            </summary>
+            <param name="button"></param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.GetMouseButton(ComputeShaders.Windows.MouseButton)">
+            <summary>
+            Returns if the mouse button is pressed.
+            </summary>
+            <param name="button"></param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.GetMouseButtonUp(ComputeShaders.Windows.MouseButton)">
+            <summary>
+            Returns if the mouse button have been released this frame.
+            </summary>
+            <param name="button"></param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.GetKeyBoardButtonDown(SharpDX.DirectInput.Key)">
+            <summary>
+            Returns if a key have been pressed this frame.
+            </summary>
+            <param name="key">The keyboard key.</param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.GetKeyBoardButton(SharpDX.DirectInput.Key)">
+            <summary>
+            Returns if a key is pressed.
+            </summary>
+            <param name="key">The keyboard key.</param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.GetKeyBoardButtonUp(SharpDX.DirectInput.Key)">
+            <summary>
+            Returns if a key have been released this frame.
+            </summary>
+            <param name="key">The keyboard key.</param>
+            <returns></returns>
+        </member>
+        <member name="M:ComputeShaders.Windows.Input.Dispose">
+            <summary>
+            Disposes the unmanaged data. 
+            </summary>
+        </member>
+        <member name="T:ComputeShaders.Windows.MouseButton">
+            <summary>
+            An enum that contains mouse buttons for <see cref="T:ComputeShaders.Windows.Input"/>.
+            </summary>
+        </member>
+        <member name="T:ComputeShaders.Windows.WindowForm">
+            <summary>
+            A basic class to create a window. It wraps and simplifies the usage of both <see cref="T:SharpDX.Windows.RenderForm"/> and <see cref="T:SharpDX.DXGI.SwapChain"/>.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.WindowForm.Width">
+            <summary>
+            The width of the window form.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.WindowForm.Height">
+            <summary>
+            The Height of the window form.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.WindowForm.Format">
+            <summary>
+            The format of the pixels in the window form.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.WindowForm.Title">
+            <summary>
+            The title of the window form.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.WindowForm.Device">
+            <summary>
+            The device the window form uses.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.WindowForm.WindowRenderForm">
+            <summary>
+            SharpDX RenderForm. This is used for more control over the window form.
+            </summary>
+        </member>
+        <member name="P:ComputeShaders.Windows.WindowForm.Output">
+            <summary>
+            The output texture used to draw on the window form. Also, it is the texture that will be passed as input in the 'updateAction' method when calling <see cref="M:ComputeShaders.Windows.WindowForm.Run(System.Action{ComputeShaders.CSTexture2D})"/>
+            </summary>
+        </member>
+        <member name="M:ComputeShaders.Windows.WindowForm.#ctor(System.Int32,System.Int32,ComputeShaders.TextureFormat,System.String)">
+            <summary>
+            Creates a new window form. Note that the window will not run until <see cref="M:ComputeShaders.Windows.WindowForm.Run(System.Action{ComputeShaders.CSTexture2D})"/> is called
+            </summary>
+            <param name="width">The width of the window form.</param>
+            <param name="height">The Height of the window form.</param>
+            <param name="format">The format of the pixels in the window form.</param>
+            <param name="title">The title of the window form.</param>
+        </member>
+        <member name="M:ComputeShaders.Windows.WindowForm.Run(System.Action{ComputeShaders.CSTexture2D})">
+            <summary>
+            Runs the window form. Note that once this function is called, the cpu will not continue past the function until the window is closed (though <paramref name="updateAction"/> will still be called evey frame).
+            </summary>
+            <param name="updateAction">The drawing action to update the window form evey frame.</param>
+        </member>
+        <member name="M:ComputeShaders.Windows.WindowForm.Dispose">
+            <summary>
+            Disposes the unmanaged data. 
+            </summary>
         </member>
     </members>
 </doc>

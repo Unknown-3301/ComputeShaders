@@ -11,6 +11,11 @@ namespace ComputeShaders
     /// </summary>
     public static class Utilities
     {
+        //public unsafe static void CopyMemory(IntPtr dest, IntPtr src, uint count)
+        //{
+        //    Buffer.MemoryCopy((void*)src, (void*)dest, count, count);
+        //}
+
         /// <summary>
         /// Copies the data from the scr pointer to the dest pointer.
         /// </summary>
@@ -19,6 +24,28 @@ namespace ComputeShaders
         /// <param name="count">Data length in bytes.</param>
         [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
         public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
+
+        /// <summary>
+        /// Access the bitmap raw data (using <see cref="Bitmap.LockBits(Rectangle, ImageLockMode, PixelFormat)"/>).
+        /// </summary>
+        /// <param name="bitmap"></param>
+        /// <param name="accessAction">The action of accessing. The raw data can only be accessed inside this action.</param>
+        /// <param name="accessMode">The mode for accessing.</param>
+        public static void AccessRawData(this Bitmap bitmap, Action<BitmapData> accessAction, ImageLockMode accessMode)
+        {
+            BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), accessMode, bitmap.PixelFormat);
+
+            try
+            {
+                accessAction(data);
+            }
+            catch
+            {
+                bitmap.UnlockBits(data);
+            }
+
+            bitmap.UnlockBits(data);
+        }
 
         /// <summary>
         /// Return the address of the object

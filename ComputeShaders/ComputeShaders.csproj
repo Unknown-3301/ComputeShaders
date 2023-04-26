@@ -45,8 +45,14 @@
     <Reference Include="SharpDX.D3DCompiler">
       <HintPath>..\UniversalComputeShader - Copy\packages\ILMerge.3.0.29\tools\net452\SharpDX.D3DCompiler.dll</HintPath>
     </Reference>
+    <Reference Include="SharpDX.Desktop, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
+      <HintPath>packages\SharpDX.Desktop.4.2.0\lib\net45\SharpDX.Desktop.dll</HintPath>
+    </Reference>
     <Reference Include="SharpDX.Direct3D11">
       <HintPath>..\UniversalComputeShader - Copy\packages\ILMerge.3.0.29\tools\net452\SharpDX.Direct3D11.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.DirectInput, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
+      <HintPath>packages\SharpDX.DirectInput.4.2.0\lib\net45\SharpDX.DirectInput.dll</HintPath>
     </Reference>
     <Reference Include="SharpDX.DXGI">
       <HintPath>..\UniversalComputeShader - Copy\packages\ILMerge.3.0.29\tools\net452\SharpDX.DXGI.dll</HintPath>
@@ -54,11 +60,12 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing">
-      <Private>True</Private>
+      <Private>False</Private>
     </Reference>
     <Reference Include="System.Drawing.Common">
       <HintPath>libs\System.Drawing.Common.dll</HintPath>
     </Reference>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -74,14 +81,17 @@
     <Compile Include="CSStructuredBuffer.cs" />
     <Compile Include="CSTexture2D.cs" />
     <Compile Include="CSTexture2DArray.cs" />
-    <Compile Include="MultipleOf16CSTexture2DConverter.cs" />
+    <Compile Include="Diagnostics\GPUTimeMeasurer.cs" />
+    <Compile Include="Diagnostics\GPUTimeMeasurerData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="CSTexture2DConverter.cs" />
     <Compile Include="ShaderResource.cs" />
     <Compile Include="TextureDataBox.cs" />
     <Compile Include="TextureFormat.cs" />
     <Compile Include="TextureFormatHelper.cs" />
     <Compile Include="Utilities.cs" />
+    <Compile Include="Windows\Input.cs" />
+    <Compile Include="Windows\MouseButton.cs" />
+    <Compile Include="Windows\WindowForm.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ILMerge.props" />
@@ -90,6 +100,7 @@
   <ItemGroup>
     <Content Include="ILMergeOrder.txt" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
