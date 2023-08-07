@@ -46,8 +46,9 @@ namespace ComputeShaders
         /// <param name="shaderName">The path to the compute shader (relative to the solution this code is in)</param>
         /// <param name="entryPoint">The main kernel function of the shader (1 kernel function for every compute shader class)</param>
         /// <param name="targetProfile">The type and version of the shader. default = cs_5_0. (cs is for Compute shader) (5_0 is for shader model 5.0)</param>
+        /// <param name="flags">The for the shader.</param>
         /// <returns>Returns the byte code of the compiled shader</returns>
-        public static byte[] CompileComputeShader(string shaderName, string entryPoint = "CSMain", string targetProfile = "cs_5_0")
+        public static byte[] CompileComputeShader(string shaderName, string entryPoint = "CSMain", string targetProfile = "cs_5_0", ShaderFlags flags = ShaderFlags.OptimizationLevel3)
         {
             try
             {

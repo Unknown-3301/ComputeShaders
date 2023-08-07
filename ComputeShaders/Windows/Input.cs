@@ -83,7 +83,7 @@ namespace ComputeShaders.Windows
                 {
                     for (int i = 0; i < -diff; i++)
                     {
-                        preList.Remove(Key.K);
+                        preList.RemoveAt(0);
                     }
                 }
 
@@ -162,9 +162,7 @@ namespace ComputeShaders.Windows
             return !currentKeyBoardState.IsPressed(key) && previousKeyBoardState.IsPressed(key);
         }
 
-        /// <summary>
-        /// Disposes the unmanaged data. 
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
             directInput.Dispose();

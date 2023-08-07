@@ -138,18 +138,10 @@ namespace ComputeShaders
 
             resource = buffer;
         }
-        internal CSStructuredBuffer(ShaderResource<Buffer> buffer, int numberOfElements, int elementSizeInBytes)
-        {
-            this.numberOfElements = numberOfElements;
-            this.elementSizeInBytes = elementSizeInBytes;
-            Device = buffer.Device;
-
-            resource = buffer.resource;
-        }
 
         /// <summary>
-        /// Updates the data stored in the buffer using the cpu. Note that <see cref="SetData(T[])"/> is faster than <see cref="ShaderResource{T}.WriteToRawData(System.Action{TextureDataBox})"/> only on small scales. 
-        /// It is recommended to use <see cref="ShaderResource{T}.WriteToRawData(System.Action{TextureDataBox})"/> instead of <see cref="SetData(T[])"/> if the buffer size in bytes is bigger than ~1,200,000.
+        /// Updates the data stored in the buffer using the cpu. Note that <see cref="SetData(T[])"/> is faster than <see cref="ShaderResource{T}.AccessRawData(System.Action{TextureDataBox}, CPUAccessMode)"/> only on small scales. 
+        /// It is recommended to use <see cref="ShaderResource{T}.AccessRawData(System.Action{TextureDataBox}, CPUAccessMode)"/> instead of <see cref="SetData(T[])"/> if the buffer size in bytes is bigger than ~1,200,000.
         /// </summary>
         /// <param name="array">The new data</param>
         public void SetData(T[] array)
@@ -206,32 +198,36 @@ namespace ComputeShaders
             stagingResource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
         }
 
-        /// <summary>
-        /// Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
-        /// </summary>
-        /// <param name="dataPointer">The pointer to the raw data.</param>
+        /// <inheritdoc/>
         public override void UpdateSubresource(System.IntPtr dataPointer)
         {
             Device.device.ImmediateContext.UpdateSubresource(new DataBox(dataPointer, Length * elementSizeInBytes, Length * elementSizeInBytes), resource);
         }
 
-        internal override uint GetResourceSize()
+        /// <summary>
+        /// Copy the contents of this resource to <paramref name="destination"/>.
+        /// NOTE: In case that the 2 resources connect to different device, CPU read/write ability must be enabled for both resources. Both resource must have exact same dimensions. When the two resources connect to different devices, this function is so slow compared to other methods like using shared resources.
+        /// </summary>
+        /// <param name="destination"></param>
+        public void CopyTo(CSStructuredBuffer<T> destination)
         {
-            return (uint)(numberOfElements * elementSizeInBytes);
-        }
-        internal override ShaderResource<Buffer> CreateSharedResource(Buffer resource, CSDevice device)
-        {
-            return new CSStructuredBuffer<T>(resource, device, numberOfElements, ElementSizeInBytes);
+            if (destination.Device != Device)
+            {
+                destination.AccessRawData(desBox =>
+                {
+                    AccessRawData(scrBox =>
+                    {
+                        Utilities.CopyMemory(desBox.DataPointer, scrBox.DataPointer, (uint)(Length * elementSizeInBytes));
+                    }, CPUAccessMode.Read);
+                }, CPUAccessMode.Write);
+            }
+            else
+            {
+                resource.Device.ImmediateContext.CopyResource(resource, destination.resource);
+            }
         }
 
-        /// <summary>
-        /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-        /// <br>- to read the resource raw data using <see cref="ShaderResource{T}.ReadFromRawData(System.Action{TextureDataBox})"/>.</br>
-        /// <br>- to write to the resource raw data using <see cref="ShaderResource{T}.WriteToRawData(System.Action{TextureDataBox})"/> function.</br>
-        /// <br>and has the disadvantages:</br>
-        /// <br>- may decrease the performance.</br>
-        /// <br>- increase the memory usage to almost the double.</br>
-        /// </summary>
+        /// <inheritdoc/>
         public override void EnableCPU_Raw_ReadWrite()
         {
             if (CPU_ReadWrite)
@@ -249,38 +245,27 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
+        /// Creates a resource that Gives its device (<paramref name="device"/>) access to a shared resource (this resource) created on a different device (this resource's device). In other words, it creates a resource with <paramref name="device"/> that is connected to this resource's device through this resource. There are important notes regarding shared resources:
+        /// <br>- If any of the two shared resources (the result resource and this resource) is updated, <see cref="CSDevice.Flush()"/> must be called.</br>
+        /// <br>- In some cases, updating a shared resource and using <see cref="CSDevice.Flush()"/> might causes problems if that shared resource was used with an asynchronous function. For example, when <see cref="CSDevice.Flush()"/> is used then <see cref="ShaderResource{T}.CopyResource(ShaderResource{T})"/> is called using that shared resources. In such cases, it is adviced to call <see cref="CSDevice.Synchronize()"/> afterwards.</br>
         /// </summary>
-        /// <param name="device">The device to connect with.</param>
+        /// <param name="device">another device.</param>
         /// <returns></returns>
-        public new CSStructuredBuffer<T> Share(CSDevice device)
-        {
-            return new CSStructuredBuffer<T>(base.Share(device), numberOfElements, elementSizeInBytes);
-        }
+        public CSStructuredBuffer<T> Share(CSDevice device) => new CSStructuredBuffer<T>(CreateSharedResource(device.device), device, Length, ElementSizeInBytes);
         /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
+        /// Creates a resource that Gives its device (<paramref name="devicePointer"/>) access to a shared resource (this resource) created on a different device (this resource's device). In other words, it creates a resource with <paramref name="devicePointer"/> that is connected to this resource's device through this resource. There are important notes regarding shared resources:
+        /// <br>- If any of the two shared resources (the result resource and this resource) is updated, <see cref="CSDevice.Flush()"/> must be called.</br>
+        /// <br>- In some cases, updating a shared resource and using <see cref="CSDevice.Flush()"/> might causes problems if that shared resource was used with an asynchronous function. For example, when <see cref="CSDevice.Flush()"/> is used then <see cref="ShaderResource{T}.CopyResource(ShaderResource{T})"/> is called using that shared resources. In such cases, it is adviced to call <see cref="CSDevice.Synchronize()"/> afterwards.</br>
         /// </summary>
-        /// <param name="another">The another shader resource to connect with</param>
+        /// <param name="devicePointer">another device.</param>
         /// <returns></returns>
-        public new CSStructuredBuffer<T> Share<T2>(ShaderResource<T2> another) where T2 : Resource
-        {
-            return new CSStructuredBuffer<T>(base.Share(another), numberOfElements, elementSizeInBytes);
-        }
-        /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>/// </summary>
-        /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
-        /// <returns></returns>
-        public new CSStructuredBuffer<T> Share(System.IntPtr devicePointer)
-        {
-            return new CSStructuredBuffer<T>(base.Share(devicePointer), numberOfElements, elementSizeInBytes);
-        }
+        public CSStructuredBuffer<T> Share(System.IntPtr devicePointer) => new CSStructuredBuffer<T>(CreateSharedResource(new Device(devicePointer)), new CSDevice(devicePointer), Length, ElementSizeInBytes);
 
-        internal UnorderedAccessView CreateUAV(Device device)
+
+        /// <inheritdoc/>
+        internal override UnorderedAccessView CreateUAV()
         {
-            unorderedAccessView = new UnorderedAccessView(device, resource, new UnorderedAccessViewDescription()
+            unorderedAccessView = new UnorderedAccessView(Device.device, resource, new UnorderedAccessViewDescription()
             {
                 Dimension = UnorderedAccessViewDimension.Buffer,
                 Buffer = new UnorderedAccessViewDescription.BufferResource()

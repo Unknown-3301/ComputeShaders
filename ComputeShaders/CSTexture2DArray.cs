@@ -89,13 +89,6 @@ namespace ComputeShaders
             resource = texture;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(texture.Description.Format);
         }
-        internal CSTexture2DArray(ShaderResource<Texture2D> shaderResource)
-        {
-            Device = shaderResource.Device;
-            resource = shaderResource.resource;
-            stagingResource = shaderResource.stagingResource;
-            FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(resource.Description.Format);
-        }
 
         /// <summary>
         /// Create a new texture array using a texture array pointer
@@ -105,26 +98,11 @@ namespace ComputeShaders
         public CSTexture2DArray(IntPtr nativePointer, TextureFormat format)
         {
             resource = new Texture2D(nativePointer);
+            Device = new CSDevice(resource.Device.NativePointer);
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes((SharpDX.DXGI.Format)format);
         }
 
-        internal override uint GetResourceSize()
-        {
-            return (uint)(Width * Height * Textures * FormatSizeInBytes);
-        }
-        internal override ShaderResource<Texture2D> CreateSharedResource(Texture2D resource, CSDevice device)
-        {
-            return new CSTexture2DArray(resource, device);
-        }
-
-        /// <summary>
-        /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-        /// <br>- to read the resource raw data using <see cref="ShaderResource{T}.ReadFromRawData(Action{TextureDataBox})"/>.</br>
-        /// <br>- to write to the resource raw data using <see cref="ShaderResource{T}.WriteToRawData(Action{TextureDataBox})"/> function.</br>
-        /// <br>and has the disadvantages:</br>
-        /// <br>- may decrease the performance.</br>
-        /// <br>- increase the memory usage to almost the double.</br>
-        /// </summary>
+        /// <inheritdoc/>
         public override void EnableCPU_Raw_ReadWrite()
         {
             if (CPU_ReadWrite)
@@ -133,7 +111,7 @@ namespace ComputeShaders
             stagingResource = new Texture2D(resource.Device, new Texture2DDescription()
             {
                 ArraySize = resource.Description.ArraySize,
-                CpuAccessFlags = resource.Description.CpuAccessFlags,
+                CpuAccessFlags = CpuAccessFlags.Write | CpuAccessFlags.Read,
                 BindFlags = BindFlags.None,
                 Format = resource.Description.Format,
                 Height = resource.Description.Height,
@@ -146,65 +124,78 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+        /// Copy the contents of this resource to <paramref name="destination"/>.
+        /// NOTE: In case that the 2 resources connect to different device, CPU read/write ability must be enabled for both resources. Both resource must have exact same dimensions. When the two resources connect to different devices, this function is so slow compared to other methods like using shared resources.
         /// </summary>
-        /// <param name="dataPointer">The pointer to the raw data.</param>
-        public override void UpdateSubresource(IntPtr dataPointer)
+        /// <param name="destination"></param>
+        public void CopyTo(CSTexture2DArray destination)
         {
-            Device.device.ImmediateContext.UpdateSubresource(new DataBox(dataPointer, Width * FormatSizeInBytes, Height * Width * FormatSizeInBytes), resource);
+            if (destination.Device != Device)
+            {
+                destination.AccessRawData(desBox =>
+                {
+                    AccessRawData(scrBox =>
+                    {
+                        Utilities.CopyMemory(desBox.DataPointer, scrBox.DataPointer, (uint)(Math.Ceiling(Width / 16f) * 16 * Height * Textures * FormatSizeInBytes));
+                    }, CPUAccessMode.Read);
+                }, CPUAccessMode.Write);
+            }
+            else
+            {
+                resource.Device.ImmediateContext.CopyResource(resource, destination.resource);
+            }
         }
 
         /// <summary>
-        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
+        /// Copies an entire slice (a texture from the texutre array) to <paramref name="destination"/>.
         /// </summary>
-        /// <param name="device">The device to connect with.</param>
-        /// <returns></returns>
-        public new CSTexture2DArray Share(CSDevice device)
+        /// <param name="destination">The texture to copy to.</param>
+        /// <param name="sliceIndex">The index to the slice to copy from.</param>
+        public void CopySliceTo(CSTexture2D destination, int sliceIndex)
         {
-            return new CSTexture2DArray(base.Share(device));
-        }
-        /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
-        /// </summary>
-        /// <param name="another">The another shader resource to connect with</param>
-        /// <returns></returns>
-        public new CSTexture2DArray Share<T>(ShaderResource<T> another) where T : Resource
-        {
-            return new CSTexture2DArray(base.Share(another));
-        }
-        /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>/// </summary>
-        /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
-        /// <returns></returns>
-        public new CSTexture2DArray Share(IntPtr devicePointer)
-        {
-            return new CSTexture2DArray(base.Share(devicePointer));
+            Device.device.ImmediateContext.CopySubresourceRegion(resource, sliceIndex, null, destination.resource, 0);
         }
 
         /// <summary>
-        /// Write to the a slice (a slice from texture array means a single texture2D) raw data (using only cpu) by an write function.
-        /// NOTE: the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+        /// Copies a slice (a texture from the texutre array), starting from (<paramref name="scrStartX"/>, <paramref name="scrStartY"/>) to <paramref name="destination"/> starting from (<paramref name="dstStartX"/>, <paramref name="dstStartY"/>).
         /// </summary>
-        /// <param name="writeAction"></param>
+        /// <param name="destination">The texture to copy to.</param>
+        /// <param name="sliceIndex">The index to the slice to copy from.</param>
+        /// <param name="copyWidth">The number of pixels to copy along the x-axis.</param>
+        /// <param name="copyHeight">The number of pixels to copy along the y-axis.</param>
+        /// <param name="scrStartX">The x index to start copying from.</param>
+        /// <param name="scrStartY">The y index to start copying from.</param>
+        /// <param name="dstStartX">The x index to start copying to.</param>
+        /// <param name="dstStartY">The y index to start copying to.</param>
+        public void CopySliceTo(CSTexture2D destination, int sliceIndex, int copyWidth, int copyHeight, int scrStartX = 0, int scrStartY = 0, int dstStartX = 0, int dstStartY = 0)
+        {
+            Device.device.ImmediateContext.CopySubresourceRegion(resource, sliceIndex, new ResourceRegion(scrStartX, scrStartY, 0, copyWidth + scrStartX, copyHeight + scrStartY, 1), destination.resource, 0, dstStartX, dstStartY);
+        }
+
+        /// <summary>
+        /// Gives the cpu access to the raw data stored in a slice (a single texture in the texture array) in the resource (by mapping https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource). During mapping:
+        /// <br>- GPU access to the resource is denied.</br>
+        /// <br>- The size of the first dimension of the resource (length in buffer, width in texture...) in bytes is rounded to the closest multiple of 16 that is larger than or equal to the original size.</br>
+        /// <br>Note that <see cref="ShaderResource{T}.CPU_ReadWrite"/> must be true, and that all the accessing can only be done inside <paramref name="accessAction"/>..</br>
+        /// </summary>
+        /// <param name="accessAction">The action to access the data.</param>
+        /// <param name="mode">The mode of access.</param>
         /// <param name="sliceIndex">The index of the texture (slice) in the texture array.</param>
-        public void WriteToSliceRawData(Action<TextureDataBox> writeAction, int sliceIndex)
+        public void AccessSliceRawData(Action<TextureDataBox> accessAction, CPUAccessMode mode, int sliceIndex)
         {
             if (!CPU_ReadWrite)
             {
-                throw new Exception("Cannot use WriteToRawData because CPU read/write ability is disabled. To enable it call EnableCPU_ReadWrite function.");
+                throw new Exception("Cannot use AccessSliceRawData because CPU read/write ability is disabled. To enable it call EnableCPU_ReadWrite function.");
             }
 
             resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
 
             int mipSize;
-            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, sliceIndex, MapMode.Write, MapFlags.None, out mipSize));
+            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, sliceIndex, (MapMode)mode, MapFlags.None, out mipSize));
 
             try
             {
-                writeAction(box);
+                accessAction(box);
             }
             finally
             {
@@ -213,38 +204,37 @@ namespace ComputeShaders
 
             resource.Device.ImmediateContext.CopyResource(stagingResource, resource);
         }
+
         /// <summary>
-        /// Reads through the slice (a slice from texture array means a single texture2D) raw data using 'readAction'.
-        /// NOTE: all the reading process must ONLY be done inside 'readAction' function. Also, the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+        /// Creates a resource that Gives its device (<paramref name="device"/>) access to a shared resource (this resource) created on a different device (this resource's device). In other words, it creates a resource with <paramref name="device"/> that is connected to this resource's device through this resource. There are important notes regarding shared resources:
+        /// <br>- If any of the two shared resources (the result resource and this resource) is updated, <see cref="CSDevice.Flush()"/> must be called.</br>
+        /// <br>- In some cases, updating a shared resource and using <see cref="CSDevice.Flush()"/> might causes problems if that shared resource was used with an asynchronous function. For example, when <see cref="CSDevice.Flush()"/> is used then <see cref="ShaderResource{T}.CopyResource(ShaderResource{T})"/> is called using that shared resources. In such cases, it is adviced to call <see cref="CSDevice.Synchronize()"/> afterwards.</br>
         /// </summary>
-        /// <param name="readAction"></param>
-        /// <param name="sliceIndex">The index of the texture (slice) in the texture array.</param>
-        public void ReadFromSliceRawData(Action<TextureDataBox> readAction, int sliceIndex)
+        /// <param name="device">another device.</param>
+        /// <returns></returns>
+        public CSTexture2DArray Share(CSDevice device) => new CSTexture2DArray(CreateSharedResource(device.device), device);
+        /// <summary>
+        /// Creates a resource that Gives its device (<paramref name="devicePointer"/>) access to a shared resource (this resource) created on a different device (this resource's device). In other words, it creates a resource with <paramref name="devicePointer"/> that is connected to this resource's device through this resource. There are important notes regarding shared resources:
+        /// <br>- If any of the two shared resources (the result resource and this resource) is updated, <see cref="CSDevice.Flush()"/> must be called.</br>
+        /// <br>- In some cases, updating a shared resource and using <see cref="CSDevice.Flush()"/> might causes problems if that shared resource was used with an asynchronous function. For example, when <see cref="CSDevice.Flush()"/> is used then <see cref="ShaderResource{T}.CopyResource(ShaderResource{T})"/> is called using that shared resources. In such cases, it is adviced to call <see cref="CSDevice.Synchronize()"/> afterwards.</br>
+        /// </summary>
+        /// <param name="devicePointer">another device.</param>
+        /// <returns></returns>
+        public CSTexture2DArray Share(IntPtr devicePointer) => new CSTexture2DArray(CreateSharedResource(new Device(devicePointer)), new CSDevice(devicePointer));
+
+        /// <inheritdoc/>
+        public override void UpdateSubresource(IntPtr dataPointer)
         {
-            if (!CPU_ReadWrite)
-            {
-                throw new Exception("Cannot use GetRawDataIntPtr because CPU read/write ability is disabled. To enable it call EnableCPU_ReadWrite function.");
-            }
+            int rowPitch = Width * FormatSizeInBytes;
+            int slicePitch = rowPitch * Height;
 
-            resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
-
-            int mipSize;
-            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, sliceIndex, MapMode.Read, MapFlags.None, out mipSize));
-
-            try
-            {
-                readAction(box);
-            }
-            finally
-            {
-                resource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
-            }
+            Device.device.ImmediateContext.UpdateSubresource(new DataBox(dataPointer, rowPitch, slicePitch), resource);
         }
 
-
-        internal UnorderedAccessView CreateUAV(Device device)
+        /// <inheritdoc/>
+        internal override UnorderedAccessView CreateUAV()
         {
-            unorderedAccessView = new UnorderedAccessView(device, resource, new UnorderedAccessViewDescription()
+            unorderedAccessView = new UnorderedAccessView(Device.device, resource, new UnorderedAccessViewDescription()
             {
                 Texture2DArray = new UnorderedAccessViewDescription.Texture2DArrayResource()
                 {

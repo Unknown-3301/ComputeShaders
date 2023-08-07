@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SharpDX.Direct3D11;
 using System.Drawing;
+using SharpDX.D3DCompiler;
 
 namespace ComputeShaders
 {
@@ -14,6 +15,8 @@ namespace ComputeShaders
     public class CSDevice : IDisposable
     {
         internal Device device;
+
+        private Query query;
 
         /// <summary>
         /// The <see cref="Device"/> native pointer.
@@ -71,7 +74,7 @@ namespace ComputeShaders
         /// <param name="shaderName">The path to the compute shader (relative to the solution this code is in)</param>
         /// <param name="entryPoint">The main kernel function of the shader</param>
         /// <param name="targetProfile">The type and version of the shader. default = cs_4_0. The type and version of the shader. default = cs_5_0. (cs is for Compute shader) (5_0 is for shader model 5.0)</param>
-        public ComputeShader CreateComputeShader(string shaderName, string entryPoint = "CSMain", string targetProfile = "cs_5_0")
+        public ComputeShader CreateComputeShader(string shaderName, string entryPoint = "CSMain", string targetProfile = "cs_5_0", ShaderFlags flags = ShaderFlags.OptimizationLevel3)
         {
             return new ComputeShader(shaderName, this, entryPoint, targetProfile);
         }
@@ -86,6 +89,9 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSTexture2D CreateTexture2D(int width, int height, TextureFormat format, bool allowSharing = false)
         {
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException("Texture dimensions cannot be 0 or less.");
+
             Texture2DDescription description = new Texture2DDescription()
             {
                 ArraySize = 1,
@@ -156,6 +162,9 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSTexture2D CreateTexture2D(int width, int height, TextureFormat format, IntPtr dataPointer, bool allowSharing = false)
         {
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException("Texture dimensions cannot be 0 or less.");
+
             Texture2DDescription description = new Texture2DDescription()
             {
                 ArraySize = 1,
@@ -184,6 +193,9 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSTexture2DArray CreateTexture2DArray(int width, int height, int numberOfTextures, TextureFormat format, bool allowSharing = false)
         {
+            if (width <= 0 || height <= 0 || numberOfTextures <= 0)
+                throw new ArgumentOutOfRangeException("Texture dimensions cannot be 0 or less.");
+
             Texture2DDescription description = new Texture2DDescription()
             {
                 ArraySize = numberOfTextures,
@@ -241,6 +253,9 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSTexture2DArray CreateTexture2DArray(int width, int height, TextureFormat format, bool allowSharing = false, params IntPtr[] dataPointers)
         {
+            if (width <= 0 || height <= 0)
+                throw new ArgumentOutOfRangeException("Texture dimensions cannot be 0 or less.");
+
             Texture2DDescription description = new Texture2DDescription()
             {
                 ArraySize = dataPointers.Length,
@@ -267,6 +282,9 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSCBuffer<T> CreateBuffer<T>(T data, int dataSizeInBytes) where T : struct
         {
+            if (dataSizeInBytes <= 0)
+                throw new ArgumentOutOfRangeException("Data size in constant buffers cannot be 0 or less.");
+
             return new CSCBuffer<T>(this, data, dataSizeInBytes);
         }
 
@@ -281,6 +299,12 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSStructuredBuffer<T> CreateStructuredBuffer<T>(IntPtr dataPointer, int length, int eachElementSizeInBytes, bool allowSharing = false) where T : struct
         {
+            if (length <= 0)
+                throw new ArgumentOutOfRangeException("Structured buffer length cannot be 0 or less.");
+
+            if (eachElementSizeInBytes <= 0)
+                throw new ArgumentOutOfRangeException("Element size in structured buffers cannot be 0 or less.");
+
             return new CSStructuredBuffer<T>(this, dataPointer, length, eachElementSizeInBytes, allowSharing);
         }
         /// <summary>
@@ -293,6 +317,9 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSStructuredBuffer<T> CreateStructuredBuffer<T>(T[] array, int eachElementSizeInBytes, bool allowSharing = false) where T : struct
         {
+            if (eachElementSizeInBytes <= 0)
+                throw new ArgumentOutOfRangeException("Element size in structured buffers cannot be 0 or less.");
+
             return new CSStructuredBuffer<T>(this, array, eachElementSizeInBytes, allowSharing);
         }
         /// <summary>
@@ -305,6 +332,9 @@ namespace ComputeShaders
         /// <returns></returns>
         public CSStructuredBuffer<T> CreateStructuredBuffer<T>(List<T> list, int eachElementSizeInBytes, bool allowSharing = false) where T : struct
         {
+            if (eachElementSizeInBytes <= 0)
+                throw new ArgumentOutOfRangeException("Element size in structured buffers cannot be 0 or less.");
+
             return new CSStructuredBuffer<T>(this, list, eachElementSizeInBytes, allowSharing);
         }
 
@@ -315,12 +345,13 @@ namespace ComputeShaders
         /// </summary>
         /// <param name="texture">The texture to be set.</param>
         /// <param name="register_uav_index">the register index of the texture in the compute shader.</param>
+        [Obsolete("You can just use SetUnorderedAccessView()")]
         public void SetRWTexture2D(CSTexture2D texture, int register_uav_index)
         {
             UnorderedAccessView view = texture.unorderedAccessView;
             if (view == null)
             {
-                view = texture.CreateUAV(device);
+                view = texture.CreateUAV();
             }
 
             device.ImmediateContext.ComputeShader.SetUnorderedAccessView(register_uav_index, view);
@@ -333,12 +364,13 @@ namespace ComputeShaders
         /// </summary>
         /// <param name="textureArray">The texture to be set.</param>
         /// <param name="register_uav_index">the register index of the texture in the compute shader.</param>
+        [Obsolete("You can just use SetUnorderedAccessView()")]
         public void SetRWTexture2DArray(CSTexture2DArray textureArray, int register_uav_index)
         {
             UnorderedAccessView view = textureArray.unorderedAccessView;
             if (view == null)
             {
-                view = textureArray.CreateUAV(device);
+                view = textureArray.CreateUAV();
             }
 
             device.ImmediateContext.ComputeShader.SetUnorderedAccessView(register_uav_index, view);
@@ -361,17 +393,62 @@ namespace ComputeShaders
         /// </summary>
         /// <param name="structuredBuffer">The structured buffer to be set.</param>
         /// <param name="register_uav_index">the register index of the buffer in the compute shader</param>
+        [Obsolete("You can just use SetUnorderedAccessView()")]
         public void SetRWStructuredBuffer<T>(CSStructuredBuffer<T> structuredBuffer, int register_uav_index) where T : struct
         {
             UnorderedAccessView view = structuredBuffer.unorderedAccessView;
             if (view == null)
             {
-                view = structuredBuffer.CreateUAV(device);
+                view = structuredBuffer.CreateUAV();
             }
 
             device.ImmediateContext.ComputeShader.SetUnorderedAccessView(register_uav_index, view);
         }
 
+        /// <summary>
+        /// connects the resource to a read/write resource in the computeShader (UAV).
+        /// This function is can be called only once, even if a new compute shader is set using <see cref="SetComputeShader(ComputeShader)"/>. The only case to call this again is if a new compute shader is set and the <paramref name="register_uav_index"/>
+        /// in that new shader is different from the old shader, then this function must be called again with <paramref name="register_uav_index"/> be the new uav index.
+        /// </summary>
+        /// <param name="resource">The resource to be set.</param>
+        /// <param name="register_uav_index">the register index of the read/write resource in the compute shader</param>
+        public void SetUnorderedAccessView<T>(ShaderResource<T> resource, int register_uav_index) where T : Resource
+        {
+            if (register_uav_index < 0)
+                throw new ArgumentOutOfRangeException("UAV Index cannot be less than 0.");
+
+            UnorderedAccessView view = resource.unorderedAccessView == null ? resource.CreateUAV() : resource.unorderedAccessView;
+
+            device.ImmediateContext.ComputeShader.SetUnorderedAccessView(register_uav_index, view);
+        }
+
+        /// <summary>
+        /// Sends queued-up commands in the command buffer to the graphics processing unit (GPU).
+        /// </summary>
+        public void Flush() => device.ImmediateContext.Flush();
+
+        /// <summary>
+        /// Synchronizes the gpu with the cpu.
+        /// </summary>
+        public void Synchronize()
+        {
+            //In Remarks section: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-flush
+            //https://stackoverflow.com/questions/64283447/how-to-understand-the-asynchrony-of-copyresource
+
+            if (query == null)
+            {
+                query = new Query(device, new QueryDescription()
+                {
+                    Flags = QueryFlags.None,
+                    Type = QueryType.Event,
+                });
+            }
+
+            Flush();
+            device.ImmediateContext.End(query);
+
+            while (!device.ImmediateContext.IsDataAvailable(query)) { }
+        }
 
         /// <summary>
         /// Runs the current compute shader in use.
@@ -392,6 +469,7 @@ namespace ComputeShaders
         public void SetComputeShader(ComputeShader newShader)
         {
             device.ImmediateContext.ComputeShader.Set(newShader.computeShader);
+            CurrentShader = newShader;
         }
 
         /// <summary>
@@ -403,18 +481,10 @@ namespace ComputeShaders
         }
 
         /// <summary>
-        /// If 2 devices have the same device native pointer
+        /// Returns whether this device and <paramref name="other"/> share the same native d3d11 device.
         /// </summary>
-        /// <param name="d1"></param>
-        /// <param name="d2"></param>
+        /// <param name="other"></param>
         /// <returns></returns>
-        public static bool operator ==(CSDevice d1, CSDevice d2) => d1.DeviceNativePointer == d2.DeviceNativePointer;
-        /// <summary>
-        /// If 2 devices do not have the same device native pointer
-        /// </summary>
-        /// <param name="d1"></param>
-        /// <param name="d2"></param>
-        /// <returns></returns>
-        public static bool operator !=(CSDevice d1, CSDevice d2) => d1.DeviceNativePointer != d2.DeviceNativePointer;
+        public bool SameNativeDevice(CSDevice other) => DeviceNativePointer == other.DeviceNativePointer;
     }
 }

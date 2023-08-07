@@ -64,7 +64,7 @@ namespace ComputeShaders
         /// </summary>
         /// <param name="format"></param>
         /// <returns></returns>
-        public static int FormatSize(this TextureFormat format)
+        public static int Size(this TextureFormat format)
         {
             return ((Format)format).SizeOfInBytes();
         }

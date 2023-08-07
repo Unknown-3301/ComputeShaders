@@ -111,9 +111,7 @@ namespace ComputeShaders.Windows
             swapChain.Present(1, PresentFlags.None);
         }
 
-        /// <summary>
-        /// Disposes the unmanaged data. 
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
             Device.Dispose();

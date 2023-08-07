@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ComputeShader.cs" />
+    <Compile Include="CPUAccessMode.cs" />
     <Compile Include="CSCBuffer.cs" />
     <Compile Include="CSDevice.cs" />
     <Compile Include="CSDeviceCreationFlag.cs" />

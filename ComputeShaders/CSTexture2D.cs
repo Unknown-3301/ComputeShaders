@@ -16,15 +16,15 @@ namespace ComputeShaders
         internal int FormatSizeInBytes { get; }
 
         /// <summary>
-        /// The width of the texture
+        /// The width of the texture.
         /// </summary>
         public int Width { get => resource.Description.Width; }
         /// <summary>
-        /// The height of the texture
+        /// The height of the texture.
         /// </summary>
         public int Height { get => resource.Description.Height; }
         /// <summary>
-        /// The format of the texture
+        /// The format of the texture.
         /// </summary>
         public TextureFormat Format { get => (TextureFormat)resource.Description.Format; }
 
@@ -75,42 +75,68 @@ namespace ComputeShaders
             resource = texture;
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(texture.Description.Format);
         }
-        internal CSTexture2D(ShaderResource<Texture2D> shaderResource)
+
+        /// <summary>
+        /// Create a new CStexture2D instance using a direct3D11 texture pointer.
+        /// </summary>
+        /// <param name="nativePointer">The texture pointer.</param>
+        public CSTexture2D(IntPtr nativePointer)
         {
-            Device = shaderResource.Device;
-            resource = shaderResource.resource;
-            stagingResource = shaderResource.stagingResource;
+            resource = new Texture2D(nativePointer);
+            Device = new CSDevice(resource.Device.NativePointer);
             FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes(resource.Description.Format);
         }
 
         /// <summary>
-        /// Create a new texture using a texture pointer
+        /// Copy the contents of this resource to <paramref name="destination"/>.
+        /// NOTE: In case that the 2 resources connect to different device, CPU read/write ability must be enabled for both resources. Both resource must have exact same dimensions. When the two resources connect to different devices, this function is so slow compared to other methods like using shared resources.
         /// </summary>
-        /// <param name="nativePointer">The texture pointer</param>
-        /// <param name="format">The format of the texture</param>
-        public CSTexture2D(IntPtr nativePointer, TextureFormat format)
+        /// <param name="destination"></param>
+        public void CopyTo(CSTexture2D destination)
         {
-            resource = new Texture2D(nativePointer);
-            FormatSizeInBytes = SharpDX.DXGI.FormatHelper.SizeOfInBytes((SharpDX.DXGI.Format)format);
-        }
-
-        internal override uint GetResourceSize()
-        {
-            return (uint)(Width * Height * FormatSizeInBytes);
-        }
-        internal override ShaderResource<Texture2D> CreateSharedResource(Texture2D resource, CSDevice device)
-        {
-            return new CSTexture2D(resource, device);
+            if (destination.Device != Device)
+            {
+                destination.AccessRawData(desBox =>
+                {
+                    AccessRawData(scrBox =>
+                    {
+                        Utilities.CopyMemory(desBox.DataPointer, scrBox.DataPointer, (uint)(Math.Ceiling(Width / 16f) * 16 * Height * FormatSizeInBytes));
+                    }, CPUAccessMode.Read);
+                }, CPUAccessMode.Write);
+            }
+            else
+            {
+                resource.Device.ImmediateContext.CopyResource(resource, destination.resource);
+            }
         }
 
         /// <summary>
-        /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-        /// <br>- to read the resource raw data using <see cref="ShaderResource{T}.ReadFromRawData(Action{TextureDataBox})"/>.</br>
-        /// <br>- to write to the resource raw data using <see cref="ShaderResource{T}.WriteToRawData(Action{TextureDataBox})"/> function.</br>
-        /// <br>and has the disadvantages:</br>
-        /// <br>- may decrease the performance.</br>
-        /// <br>- increase the memory usage to almost the double.</br>
+        /// Creates a resource that Gives its device (<paramref name="device"/>) access to a shared resource (this resource) created on a different device (this resource's device). In other words, it creates a resource with <paramref name="device"/> that is connected to this resource's device through this resource. There are important notes regarding shared resources:
+        /// <br>- If any of the two shared resources (the result resource and this resource) is updated, <see cref="CSDevice.Flush()"/> must be called.</br>
+        /// <br>- In some cases, updating a shared resource and using <see cref="CSDevice.Flush()"/> might causes problems if that shared resource was used with an asynchronous function. For example, when <see cref="CSDevice.Flush()"/> is used then <see cref="ShaderResource{T}.CopyResource(ShaderResource{T})"/> is called using that shared resources. In such cases, it is adviced to call <see cref="CSDevice.Synchronize()"/> afterwards.</br>
         /// </summary>
+        /// <param name="device">another device.</param>
+        /// <returns></returns>
+        public CSTexture2D Share(CSDevice device) => new CSTexture2D(CreateSharedResource(device.device), device);
+        /// <summary>
+        /// Creates a resource that Gives its device (<paramref name="devicePointer"/>) access to a shared resource (this resource) created on a different device (this resource's device). In other words, it creates a resource with <paramref name="devicePointer"/> that is connected to this resource's device through this resource. There are important notes regarding shared resources:
+        /// <br>- If any of the two shared resources (the result resource and this resource) is updated, <see cref="CSDevice.Flush()"/> must be called.</br>
+        /// <br>- In some cases, updating a shared resource and using <see cref="CSDevice.Flush()"/> might causes problems if that shared resource was used with an asynchronous function. For example, when <see cref="CSDevice.Flush()"/> is used then <see cref="ShaderResource{T}.CopyResource(ShaderResource{T})"/> is called using that shared resources. In such cases, it is adviced to call <see cref="CSDevice.Synchronize()"/> afterwards.</br>
+        /// </summary>
+        /// <param name="devicePointer">another device.</param>
+        /// <returns></returns>
+        public CSTexture2D Share(IntPtr devicePointer) => new CSTexture2D(CreateSharedResource(new Device(devicePointer)), new CSDevice(devicePointer));
+
+        /// <inheritdoc/>
+        public override void UpdateSubresource(IntPtr dataPointer)
+        {
+            int rowPitch = Width * FormatSizeInBytes;
+            int slicePitch = rowPitch * Height;
+
+            Device.device.ImmediateContext.UpdateSubresource(new DataBox(dataPointer, rowPitch, slicePitch), resource);
+        }
+
+        /// <inheritdoc/>
         public override void EnableCPU_Raw_ReadWrite()
         {
             if (CPU_ReadWrite)
@@ -119,7 +145,7 @@ namespace ComputeShaders
             stagingResource = new Texture2D(resource.Device, new Texture2DDescription()
             {
                 ArraySize = resource.Description.ArraySize,
-                CpuAccessFlags = resource.Description.CpuAccessFlags,
+                CpuAccessFlags = CpuAccessFlags.Write | CpuAccessFlags.Read,
                 BindFlags = BindFlags.None,
                 Format = resource.Description.Format,
                 Height = resource.Description.Height,
@@ -131,48 +157,10 @@ namespace ComputeShaders
             });
         }
 
-        /// <summary>
-        /// Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
-        /// </summary>
-        /// <param name="dataPointer">The pointer to the raw data.</param>
-        public override void UpdateSubresource(IntPtr dataPointer)
+        /// <inheritdoc/>
+        internal override UnorderedAccessView CreateUAV()
         {
-            Device.device.ImmediateContext.UpdateSubresource(new DataBox(dataPointer, Width * FormatSizeInBytes, Height * Width * FormatSizeInBytes), resource);
-        }
-
-        /// <summary>
-        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
-        /// </summary>
-        /// <param name="device">The device to connect with.</param>
-        /// <returns></returns>
-        public new CSTexture2D Share(CSDevice device)
-        {
-            return new CSTexture2D(base.Share(device));
-        }
-        /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>
-        /// </summary>
-        /// <param name="another">The another shader resource to connect with</param>
-        /// <returns></returns>
-        public new CSTexture2D Share<T>(ShaderResource<T> another) where T : Resource
-        {
-            return new CSTexture2D(base.Share(another));
-        }
-        /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="ShaderResource{T}.Flush"/> must be called on the changed resource.</br>/// </summary>
-        /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
-        /// <returns></returns>
-        public new CSTexture2D Share(IntPtr devicePointer)
-        {
-            return new CSTexture2D(base.Share(devicePointer));
-        }
-
-        internal UnorderedAccessView CreateUAV(Device device)
-        {
-            unorderedAccessView = new UnorderedAccessView(device, resource, new UnorderedAccessViewDescription()
+            unorderedAccessView = new UnorderedAccessView(Device.device, resource, new UnorderedAccessViewDescription()
             {
                 Format = resource.Description.Format,
                 Dimension = UnorderedAccessViewDimension.Texture2D,

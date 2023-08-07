@@ -10,7 +10,7 @@ namespace ComputeShaders
     /// <summary>
     /// A base class for all shader Resources (exept constant buffer).
     /// </summary>
-    public class ShaderResource<T> : IDisposable where T : Resource
+    public abstract class ShaderResource<T> : IDisposable where T : Resource
     {
         internal T resource;
         internal T stagingResource;
@@ -26,118 +26,41 @@ namespace ComputeShaders
         public CSDevice Device { get; protected set; }
 
         /// <summary>
-        /// The ability to read/write the resource raw data in the cpu
+        /// The ability to read/write the resource raw data by cpu. When true, it enables the cpu to read/write the resource raw data. However, enabling it increases memory usage to almost double.
         /// </summary>
         public bool CPU_ReadWrite { get => stagingResource != null; }
 
-        internal virtual ShaderResource<T> CreateSharedResource(T resource, CSDevice device)
-        {
-            return new ShaderResource<T>()
-            {
-                resource = resource,
-                Device = device,
-            };
-        }
 
-        /// <summary>
-        /// Connects this resource to another device so that data can read/write between the resource and the device or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="Flush"/> must be called on the changed resource.</br>
-        /// </summary>
-        /// <param name="device">The device to connect with.</param>
-        /// <returns></returns>
-        public ShaderResource<T> Share(CSDevice device)
+        internal T CreateSharedResource(Device device)
         {
             //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
             SharpDX.DXGI.Resource copy = resource.QueryInterface<SharpDX.DXGI.Resource>();
             IntPtr sharedHandle = copy.SharedHandle;
-            return CreateSharedResource(device.device.OpenSharedResource<T>(sharedHandle), device);
-        }
-        /// <summary>
-        /// Connects this resource to another resource so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="Flush"/> must be called on the changed resource.</br>
-        /// </summary>
-        /// <param name="another">The another shader resource to connect with</param>
-        /// <returns></returns>
-        public ShaderResource<T> Share<T2>(ShaderResource<T2> another) where T2 : Resource
-        {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = resource.QueryInterface<SharpDX.DXGI.Resource>();
-            IntPtr sharedHandle = copy.SharedHandle;
-            return CreateSharedResource(another.resource.Device.OpenSharedResource<T>(sharedHandle), another.Device);
-        }
-        /// <summary>
-        /// Connects this resource to a Direct3D 11 device so that data can read/write between the resource and the other resource or any resource connected to it directly. 
-        /// <br>NOTE: after calling this function if any changes occured to the resource or the shared version then <see cref="Flush"/> must be called on the changed resource.</br>/// </summary>
-        /// <param name="devicePointer">The Direct3D 11 device to connect with</param>
-        /// <returns></returns>
-        public ShaderResource<T> Share(IntPtr devicePointer)
-        {
-            //source: https://stackoverflow.com/questions/41625272/direct3d11-sharing-a-texture-between-devices-black-texture
-            SharpDX.DXGI.Resource copy = resource.QueryInterface<SharpDX.DXGI.Resource>();
-            IntPtr sharedHandle = copy.SharedHandle;
-            Device device = new Device(devicePointer);
-            return CreateSharedResource(device.OpenSharedResource<T>(sharedHandle), new CSDevice(devicePointer));
+            return device.OpenSharedResource<T>(sharedHandle);
         }
 
         /// <summary>
-        /// Sends queued-up commands in the command buffer to the graphics processing unit (GPU). It is used after updating a shared resource.
+        /// Gives the cpu access to the raw data stored in the resource (by mapping https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource). During mapping:
+        /// <br>- GPU access to the resource is denied.</br>
+        /// <br>- The size of the first dimension of the resource (length in buffer, width in texture...) in bytes is rounded to the closest multiple of 16 that is larger than or equal to the original size.</br>
+        /// <br>Note that <see cref="CPU_ReadWrite"/> must be true, and that all the accessing can only be done inside <paramref name="accessAction"/>..</br>
         /// </summary>
-        public void Flush()
-        {
-            resource.Device.ImmediateContext.Flush();
-        }
-
-        /// <summary>
-        /// Returns the size of the resource in bytes.
-        /// </summary>
-        /// <returns></returns>
-        internal virtual uint GetResourceSize()
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Copy the contents from this resource to another resource.
-        /// NOTE: In case that the 2 resources connect to different shaders, CPU read/write ability must be enabled for both resources. Both resource must have exact same dimensions. This function is so slow compared to other methods like using shared resources.
-        /// </summary>
-        /// <param name="destination">The resource to copy to.</param>
-        public void CopyTo(ShaderResource<T> destination)
-        {
-            if (destination.Device != Device)
-            {
-                destination.WriteToRawData(desBox =>
-                {
-                    ReadFromRawData(scrBox =>
-                    {
-                        Utilities.CopyMemory(desBox.DataPointer, scrBox.DataPointer, GetResourceSize());
-                    });
-                });
-            }
-            else
-            {
-                resource.Device.ImmediateContext.CopyResource(resource, destination.resource);
-            }
-        }
-
-        /// <summary>
-        /// Write to the resource raw data (using only cpu) by an write function.
-        /// NOTE: the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
-        /// </summary>
-        /// <param name="writeAction"></param>
-        public void WriteToRawData(Action<TextureDataBox> writeAction)
+        /// <param name="accessAction">The action to access the data.</param>
+        /// <param name="mode">The mode of access.</param>
+        public void AccessRawData(Action<TextureDataBox> accessAction, CPUAccessMode mode)
         {
             if (!CPU_ReadWrite)
             {
-                throw new Exception("Cannot use WriteToRawData because CPU read/write ability is disabled. To enable it call EnableCPU_Raw_ReadWrite function.");
+                throw new Exception("Cannot use AccessRawData because CPU read/write ability is disabled. To enable it call EnableCPU_Raw_ReadWrite function.");
             }
 
             resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
 
-            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, MapMode.Write, MapFlags.None));
+            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, (MapMode)mode, MapFlags.None));
 
             try
             {
-                writeAction(box);
+                accessAction(box);
             }
             finally
             {
@@ -146,64 +69,39 @@ namespace ComputeShaders
 
             resource.Device.ImmediateContext.CopyResource(stagingResource, resource);
         }
+
         /// <summary>
-        /// Reads through the raw data using 'readAction'.
-        /// NOTE: all the reading process must ONLY be done inside 'readAction' function. Also, the data box pointer is aligned to 16 bytes. Check: https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource
+        /// An asynchronous call that copies the entire contents of the source resource to the destination resource using the GPU. This call has a few restrictions, the source resource (this) and <paramref name="destination"/>:
+        /// <br>- Must be different resources.</br>
+        /// <br>- Must share the same <see cref="Device"/>.</br>
+        /// <br>- Must be the same type.</br>
+        /// <br>- Must have identical dimensions (including width, height, depth, and size as appropriate).</br>
+        /// <br>- Must have compatible <see cref="TextureFormat"/> (if they were textures), which means the formats must be identical or at least from the same type group. For example, a <see cref="TextureFormat.R32G32B32_Float"/> texture can be copied to a <see cref="TextureFormat.R32G32B32_UInt"/> texture since both of these formats are in the  <see cref="TextureFormat.R32G32B32_Typeless"/> group. </br>
         /// </summary>
-        /// <returns></returns>
-        public void ReadFromRawData(Action<TextureDataBox> readAction)
+        /// <param name="destination"></param>
+        public void CopyResource(ShaderResource<T> destination)
         {
-            if (!CPU_ReadWrite)
-            {
-                throw new Exception("Cannot use GetRawDataIntPtr because CPU read/write ability is disabled. To enable it call EnableCPU_Raw_ReadWrite function.");
-            }
-
-            resource.Device.ImmediateContext.CopyResource(resource, stagingResource);
-
-            TextureDataBox box = new TextureDataBox(resource.Device.ImmediateContext.MapSubresource(stagingResource, 0, MapMode.Read, MapFlags.None));
-
-            try
-            {
-                readAction(box);
-            }
-            finally
-            {
-                resource.Device.ImmediateContext.UnmapSubresource(stagingResource, 0);
-            }
+            //See this: https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-mapping
+            
+            Device.device.ImmediateContext.CopyResource(resource, destination.resource);
         }
 
         /// <summary>
-        /// Updates the whole resource with the raw data from <paramref name="dataPointer"/>.
+        /// Updates the resource with the raw data from <paramref name="dataPointer"/> using the cpu.
         /// </summary>
-        /// <param name="dataPointer">The pointer to the raw data.</param>
-        /// <exception cref="NotImplementedException"></exception>
-        public virtual void UpdateSubresource(IntPtr dataPointer)
-        {
-            throw new NotImplementedException();
-        }
+        /// <param name="dataPointer">The pointer containing</param>
+        public abstract void UpdateSubresource(IntPtr dataPointer);
+        /// <summary>
+        /// Enables <see cref="CPU_ReadWrite"/>.
+        /// </summary>
+        public abstract void EnableCPU_Raw_ReadWrite();
+        /// <summary>
+        /// Creates an <see cref="UnorderedAccessView"/> for the resource.
+        /// </summary>
+        internal abstract UnorderedAccessView CreateUAV();
 
         /// <summary>
-        /// Enables the ability to read/write the resource raw data using cpu. Enabling it has the advantages:
-        /// <br>- to read the resource raw data using <see cref="ReadFromRawData(Action{TextureDataBox})"/>.</br>
-        /// <br>- to write to the resource raw data using <see cref="WriteToRawData(Action{TextureDataBox})"/>.</br>
-        /// <br>and has the disadvantages:</br>
-        /// <br>- may decrease the performance.</br>
-        /// <br>- increase the memory usage to almost the double.</br>
-        /// </summary>
-        public virtual void EnableCPU_Raw_ReadWrite()
-        {
-            if (CPU_ReadWrite)
-                return;
-
-            throw new NotImplementedException();
-        }
-        /// <summary>
-        /// Disables the ability to read/write the resource raw data using cpu. Disables it has the advantages (if cpu read/write was enabled):
-        /// <br>- may increase the performance.</br>
-        /// <br>- decrease the memory usage to almost the half.</br>
-        /// <br>and has the disadvantages:</br>
-        /// <br>- can not read the resource raw data using <see cref="ReadFromRawData(Action{TextureDataBox})"/>.</br>
-        /// <br>- can not write to the resource raw data using <see cref="WriteToRawData(Action{TextureDataBox})"/>.</br>
+        /// Disables <see cref="CPU_ReadWrite"/>.
         /// </summary>
         public void DisablesCPU_Raw_ReadWrite()
         {
@@ -214,18 +112,19 @@ namespace ComputeShaders
             stagingResource = null;
         }
 
-        /// <summary>
-        /// Dispose the unmanneged data to prevent memory leaks. This function must be called after finishing using the resource.
-        /// </summary>
-        public void Dispose()
+        /// <inheritdoc/>
+        public virtual void Dispose()
         {
             resource.Dispose();
-
-            if (stagingResource != null)
-                stagingResource.Dispose();
-
-            if (unorderedAccessView != null)
-                unorderedAccessView.Dispose();
+            stagingResource?.Dispose();
+            unorderedAccessView?.Dispose();
         }
+
+        /// <summary>
+        /// Returns whether this shaderResource and <paramref name="other"/> share the same native d3d11 resource.
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public bool SameNativeResource(ShaderResource<T> other) => ResourceNativePointer == other.ResourceNativePointer;
     }
 }

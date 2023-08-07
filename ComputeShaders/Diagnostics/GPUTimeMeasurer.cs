@@ -68,9 +68,7 @@ namespace ComputeShaders.Diagnostics
             };
         }
 
-        /// <summary>
-        /// Disposes the unmanaged data. 
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
             disjoint.Dispose();
