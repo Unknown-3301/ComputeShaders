@@ -58,7 +58,7 @@ namespace ComputeShaders.Windows
         /// <param name="height">The Height of the window form.</param>
         /// <param name="format">The format of the pixels in the window form.</param>
         /// <param name="title">The title of the window form.</param>
-        public WindowForm(int width, int height, TextureFormat format, string title)
+        public WindowForm(int width, int height, TextureFormat format, string title, int gpuAdapterIndex = 0)
         {
             Width = width;
             Height = height;
@@ -81,8 +81,13 @@ namespace ComputeShaders.Windows
                 IsWindowed = true
             };
 
+            Adapter1 gpu;
+            using (var factory = new Factory1())
+            {
+                gpu = factory.GetAdapter1(gpuAdapterIndex);
+            }
 
-            SharpDX.Direct3D11.Device.CreateWithSwapChain(DriverType.Hardware, DeviceCreationFlags.None, swapChainDesc, out device, out swapChain);
+            SharpDX.Direct3D11.Device.CreateWithSwapChain(gpu, DeviceCreationFlags.None, swapChainDesc, out device, out swapChain);
 
             targetView = new RenderTargetView(device, swapChain.GetBackBuffer<Texture2D>(0));
 

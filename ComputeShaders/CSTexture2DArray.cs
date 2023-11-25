@@ -130,13 +130,36 @@ namespace ComputeShaders
         /// <param name="destination"></param>
         public void CopyTo(CSTexture2DArray destination)
         {
-            if (destination.Device != Device)
+            if (!destination.Device.SameNativeDevice(Device))
             {
                 destination.AccessRawData(desBox =>
                 {
-                    AccessRawData(scrBox =>
+                    AccessRawData(srcBox =>
                     {
-                        Utilities.CopyMemory(desBox.DataPointer, scrBox.DataPointer, (uint)(Math.Ceiling(Width / 16f) * 16 * Height * Textures * FormatSizeInBytes));
+                        if (desBox.RowPitch == srcBox.RowPitch)
+                            Utilities.CopyMemory(desBox.DataPointer, srcBox.DataPointer, (uint)(desBox.RowPitch * Height * Textures * FormatSizeInBytes));
+                        else
+                        {
+                            IntPtr src = srcBox.DataPointer;
+                            IntPtr dst = desBox.DataPointer;
+
+                            int src_diff = srcBox.SlicePitch - srcBox.RowPitch * Height;
+                            int dst_diff = desBox.SlicePitch - desBox.RowPitch * Height;
+
+                            for (int i = 0; i < Textures; i++)
+                            {
+                                for (int y = 0; y < Height; y++)
+                                {
+                                    Utilities.CopyMemory(dst, src, (uint)(Width * FormatSizeInBytes));
+
+                                    src = IntPtr.Add(src, srcBox.RowPitch);
+                                    dst = IntPtr.Add(dst, desBox.RowPitch);
+                                }
+
+                                src = IntPtr.Add(src, src_diff);
+                                dst = IntPtr.Add(dst, dst_diff);
+                            }
+                        }
                     }, CPUAccessMode.Read);
                 }, CPUAccessMode.Write);
             }
@@ -153,7 +176,37 @@ namespace ComputeShaders
         /// <param name="sliceIndex">The index to the slice to copy from.</param>
         public void CopySliceTo(CSTexture2D destination, int sliceIndex)
         {
-            Device.device.ImmediateContext.CopySubresourceRegion(resource, sliceIndex, null, destination.resource, 0);
+            if (sliceIndex < 0 || sliceIndex >= Textures)
+                throw new IndexOutOfRangeException();
+
+            if (!destination.Device.SameNativeDevice(Device))
+            {
+                AccessSliceRawData(srcBox =>
+                {
+                    destination.AccessRawData(dstBox =>
+                    {
+                        if (dstBox.RowPitch == srcBox.RowPitch)
+                            Utilities.CopyMemory(dstBox.DataPointer, srcBox.DataPointer, (uint)(dstBox.RowPitch * Height * FormatSizeInBytes));
+                        else
+                        {
+                            IntPtr src = srcBox.DataPointer;
+                            IntPtr dst = dstBox.DataPointer;
+
+                            for (int y = 0; y < Height; y++)
+                            {
+                                Utilities.CopyMemory(dst, src, (uint)(Width * FormatSizeInBytes));
+
+                                src = IntPtr.Add(src, srcBox.RowPitch);
+                                dst = IntPtr.Add(dst, dstBox.RowPitch);
+                            }
+                        }
+                    }, CPUAccessMode.Write);
+                }, CPUAccessMode.Read, sliceIndex);
+            }
+            else
+            {
+                Device.device.ImmediateContext.CopySubresourceRegion(resource, sliceIndex, null, destination.resource, 0);
+            }
         }
 
         /// <summary>
@@ -161,15 +214,49 @@ namespace ComputeShaders
         /// </summary>
         /// <param name="destination">The texture to copy to.</param>
         /// <param name="sliceIndex">The index to the slice to copy from.</param>
-        /// <param name="copyWidth">The number of pixels to copy along the x-axis.</param>
-        /// <param name="copyHeight">The number of pixels to copy along the y-axis.</param>
-        /// <param name="scrStartX">The x index to start copying from.</param>
-        /// <param name="scrStartY">The y index to start copying from.</param>
-        /// <param name="dstStartX">The x index to start copying to.</param>
-        /// <param name="dstStartY">The y index to start copying to.</param>
-        public void CopySliceTo(CSTexture2D destination, int sliceIndex, int copyWidth, int copyHeight, int scrStartX = 0, int scrStartY = 0, int dstStartX = 0, int dstStartY = 0)
+        /// <param name="widthCount">The number of pixels to copy along the x-axis.</param>
+        /// <param name="heightCount">The number of pixels to copy along the y-axis.</param>
+        /// <param name="srcX">The x index to start copying from.</param>
+        /// <param name="srcY">The y index to start copying from.</param>
+        /// <param name="dstX">The x index to start copying to.</param>
+        /// <param name="dstY">The y index to start copying to.</param>
+        public void CopySliceTo(CSTexture2D destination, int sliceIndex, int srcX, int srcY, int dstX, int dstY, int widthCount, int heightCount)
         {
-            Device.device.ImmediateContext.CopySubresourceRegion(resource, sliceIndex, new ResourceRegion(scrStartX, scrStartY, 0, copyWidth + scrStartX, copyHeight + scrStartY, 1), destination.resource, 0, dstStartX, dstStartY);
+            if (srcX < 0 || srcY < 0 || dstX < 0 || dstY < 0 || srcX >= Width || srcY >= Height || dstX >= destination.Width || dstY >= destination.Height)
+                throw new IndexOutOfRangeException();
+
+            if (widthCount < 0 || heightCount < 0 || srcX + widthCount > Width || srcY + heightCount > Height || dstX + widthCount > destination.Width || dstY + heightCount > destination.Height)
+                throw new ArgumentOutOfRangeException();
+
+            if (!destination.Device.SameNativeDevice(Device))
+            {
+                destination.AccessRawData(desBox =>
+                {
+                    AccessSliceRawData(scrBox =>
+                    {
+                        if (desBox.RowPitch == scrBox.RowPitch && widthCount == Width)
+                            Utilities.CopyMemory(desBox.DataPointer, scrBox.DataPointer, (uint)(desBox.RowPitch * heightCount * FormatSizeInBytes));
+                        else
+                        {
+                            IntPtr src = IntPtr.Add(scrBox.DataPointer, srcX * FormatSizeInBytes + srcY * scrBox.RowPitch);
+                            IntPtr dst = IntPtr.Add(desBox.DataPointer, dstX * FormatSizeInBytes + dstY * desBox.RowPitch);
+
+                            for (int y = 0; y < heightCount; y++)
+                            {
+                                Utilities.CopyMemory(dst, src, (uint)(widthCount * FormatSizeInBytes));
+
+                                src = IntPtr.Add(src, scrBox.RowPitch);
+                                dst = IntPtr.Add(dst, desBox.RowPitch);
+                            }
+                        }
+
+                    }, CPUAccessMode.Read, sliceIndex);
+                }, CPUAccessMode.Write);
+            }
+            else
+            {
+                Device.device.ImmediateContext.CopySubresourceRegion(resource, sliceIndex, new ResourceRegion(srcX, srcY, 0, widthCount + srcX, heightCount + srcY, 1), destination.resource, 0, dstX, dstY);
+            }
         }
 
         /// <summary>

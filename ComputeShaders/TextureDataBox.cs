@@ -14,15 +14,15 @@ namespace ComputeShaders
         /// <summary>
         /// The data pointer. It is aligned to 16 bytes
         /// </summary>
-        public IntPtr DataPointer { get; internal set; }
+        public IntPtr DataPointer { get; set; }
         /// <summary>
-        /// Gets the number of bytes per row.
+        /// Gets the number of bytes per row padded (rounded up to the closest multiple of 16).
         /// </summary>
-        public int RowPitch { get; internal set; }
+        public int RowPitch { get; set; }
         /// <summary>
-        /// Gets the number of bytes per slice (for a 3D texture, a slice is a 2D image)
+        /// Gets the number of bytes per slice (for a 3D texture, a slice is a 2D image) padded (rounded up to the closest multiple of 16).
         /// </summary>
-        public int SlicePitch { get; internal set; }
+        public int SlicePitch { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is empty.

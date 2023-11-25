@@ -42,7 +42,7 @@ namespace ComputeShaders
         /// <summary>
         /// Gives the cpu access to the raw data stored in the resource (by mapping https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_mapped_subresource). During mapping:
         /// <br>- GPU access to the resource is denied.</br>
-        /// <br>- The size of the first dimension of the resource (length in buffer, width in texture...) in bytes is rounded to the closest multiple of 16 that is larger than or equal to the original size.</br>
+        /// <br>- The size of the first dimension of the resource (length in buffer, width in texture...) in bytes is rounded to the closest multiple of 16 that is larger than or equal to the original size. If you want to avoid this problem you can use <see cref="UpdateSubresource(IntPtr)"/>.</br>
         /// <br>Note that <see cref="CPU_ReadWrite"/> must be true, and that all the accessing can only be done inside <paramref name="accessAction"/>..</br>
         /// </summary>
         /// <param name="accessAction">The action to access the data.</param>
@@ -88,6 +88,7 @@ namespace ComputeShaders
 
         /// <summary>
         /// Updates the resource with the raw data from <paramref name="dataPointer"/> using the cpu.
+        /// <br>Note that this function avoids the trouble of dealing with byte alignment in textures. So data here can be passed without the need to be padded.</br>
         /// </summary>
         /// <param name="dataPointer">The pointer containing</param>
         public abstract void UpdateSubresource(IntPtr dataPointer);

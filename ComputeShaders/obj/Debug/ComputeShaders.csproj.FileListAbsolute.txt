@@ -3,3 +3,8 @@ C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\Compute
 C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.pdb
 C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\bin\Debug\ComputeShaders.xml
 C:\Users\moham\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.csproj.AssemblyReference.cache
+C:\Users\unkno\Documents\Visual Studio Projects\ComputeShaders\bin\Debug\ComputeShaders.xml
+C:\Users\unkno\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.csproj.AssemblyReference.cache
+C:\Users\unkno\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.csproj.CoreCompileInputs.cache
+C:\Users\unkno\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.dll
+C:\Users\unkno\Documents\Visual Studio Projects\ComputeShaders\obj\Debug\ComputeShaders.pdb

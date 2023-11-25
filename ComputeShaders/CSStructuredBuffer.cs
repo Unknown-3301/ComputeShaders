@@ -211,7 +211,7 @@ namespace ComputeShaders
         /// <param name="destination"></param>
         public void CopyTo(CSStructuredBuffer<T> destination)
         {
-            if (destination.Device != Device)
+            if (!destination.Device.SameNativeDevice(Device))
             {
                 destination.AccessRawData(desBox =>
                 {
@@ -224,6 +224,37 @@ namespace ComputeShaders
             else
             {
                 resource.Device.ImmediateContext.CopyResource(resource, destination.resource);
+            }
+        }
+
+        /// <summary>
+        /// Copy some contents of this resource to <paramref name="destination"/>.
+        /// NOTE: In case that the 2 resources connect to different device, CPU read/write ability must be enabled for both resources. Both resource must have exact same dimensions. When the two resources connect to different devices, this function is so slow compared to other methods like using shared resources.
+        /// </summary>
+        /// <param name="destination"></param>
+        /// <param name="sourceStartIndex">The element index to start copy from.</param>
+        /// <param name="destinationStartIndex">The element index to start copy to.</param>
+        /// <param name="count">The number of elements to copy.</param>
+        public void CopyTo(CSStructuredBuffer<T> destination, int sourceStartIndex, int destinationStartIndex, int count)
+        {
+            if (!destination.Device.SameNativeDevice(Device))
+            {
+                destination.AccessRawData(desBox =>
+                {
+                    AccessRawData(scrBox =>
+                    {
+                        System.IntPtr dst = System.IntPtr.Add(desBox.DataPointer, destinationStartIndex * elementSizeInBytes);
+                        System.IntPtr src = System.IntPtr.Add(scrBox.DataPointer, sourceStartIndex * elementSizeInBytes);
+
+                        Utilities.CopyMemory(dst, src, (uint)(count * elementSizeInBytes));
+                    }, CPUAccessMode.Read);
+                }, CPUAccessMode.Write);
+            }
+            else
+            {
+                //Here we used bytes index in resource region. This is from https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_box
+                // "Coordinates of a box are in bytes for buffers and in texels for textures."
+                resource.Device.ImmediateContext.CopySubresourceRegion(resource, 0, new ResourceRegion(sourceStartIndex * elementSizeInBytes, 0, 0, (count + sourceStartIndex) * elementSizeInBytes, 1, 1), destination.resource, 0, destinationStartIndex * elementSizeInBytes);
             }
         }
 
